@@ -11,7 +11,8 @@ const USAGE = `usage: capture.mjs <file.svg> [--out dir] [--at 0,25,50,75,100] [
   --img     also shoot the file embedded as <img> (proves it renders as an image; shows an early frame)
   --dark    shoot in the dark colour scheme
   --zoom    a 3x close-up of the region x,y,w,h in SVG units, at the end state (alone, it shoots only the close-up)
-  --sheet   tile every shot into one contact sheet (needs ImageMagick montage)`;
+  --sheet   tile every shot into one contact sheet (needs ImageMagick montage)
+  --machines  a 2x close-up of every machine (from data-box) tiled into <name>-machines.png, for the beauty review`;
 
 const args = process.argv.slice(2);
 if (!args.length || args.includes("-h") || args.includes("--help")) {
@@ -23,7 +24,7 @@ const opt = (name, def) => {
   const i = args.indexOf(name);
   return i < 0 ? def : args[i + 1];
 };
-const known = new Set(["--out", "--at", "--width", "--reduced", "--img", "--dark", "--zoom", "--sheet"]);
+const known = new Set(["--out", "--at", "--width", "--reduced", "--img", "--dark", "--zoom", "--sheet", "--machines"]);
 for (const a of args.slice(1)) if (a.startsWith("--") && !known.has(a)) {
   console.error(`unknown option ${a}\n${USAGE}`);
   process.exit(2);
@@ -42,7 +43,7 @@ if (!vb) {
 const [vw, vh] = [+vb[3], +vb[4]];
 const durMatch = svg.match(/data-duration="(\d+)"/);
 const durationMs = durMatch ? +durMatch[1] : null;
-const zoomOnly = args.includes("--zoom") && !args.includes("--at") && !args.includes("--width");
+const zoomOnly = (args.includes("--zoom") || args.includes("--machines")) && !args.includes("--at") && !args.includes("--width");
 const ats = zoomOnly ? [] : opt("--at", "0,25,50,75,100").split(",").map(Number);
 if (ats.some((n) => !(n >= 0 && n <= 100))) {
   console.error("--at takes percentages between 0 and 100");
@@ -110,6 +111,31 @@ if (zoom) {
   const css = `svg{position:absolute;left:${-x * scale}px;top:${-y * scale}px;width:${vw * scale}px!important}`;
   const p = shoot(`zoom-${x}-${y}`, frozen(100, css), w, h);
   if (p) shots.push(p);
+}
+
+if (args.includes("--machines")) {
+  const boxes = [...svg.matchAll(/class="m m-([\w-]+)" data-machine="([^"]+)" data-box="([^"]+)"/g)].map((m) => ({ kind: m[1], id: m[2], box: m[3].split(" ").map(Number) }));
+  if (!boxes.length) errors.push("no data-box attributes; --machines needs an SVG built by the Beltline kit");
+  else {
+    const scale = 2, W2 = Math.round(vw * scale), H2 = Math.ceil(vh * scale);
+    const big = shoot("machines-full", frozen(100), W2, H2);
+    if (big) {
+      const tiles = [];
+      for (const { kind, id, box: [bx, by, bw, bh] } of boxes) {
+        const pad = 22, X = Math.max(0, Math.round((bx - pad) * scale)), Y = Math.max(0, Math.round((by - pad - 14) * scale));
+        const tile = join(work, `tile-${tiles.length}.png`);
+        const r = spawnSync("magick", [big, "-crop", `${Math.round((bw + 2 * pad) * scale)}x${Math.round((bh + 2 * pad + 28) * scale)}+${X}+${Y}`, "+repage", "-resize", "320x260>", "-background", "#f3f1ea", "-gravity", "center", "-extent", "320x260", tile]);
+        if (r.status === 0) tiles.push(["-label", `${kind} · ${id}`, tile]);
+      }
+      const sheet = join(out, `${basename(file, ".svg")}-machines.png`);
+      const r = spawnSync("montage", [...tiles.flat(), "-tile", "6x", "-geometry", "+6+6", "-pointsize", "14", "-background", "#ddd", sheet], { encoding: "utf8" });
+      if (r.status !== 0) errors.push(`montage failed for the machine sheet: ${r.stderr}`);
+      else {
+        shots.push(sheet);
+        console.log(`machines ${sheet} (${tiles.length} machines): score each one for beauty; fix anything under 8`);
+      }
+    }
+  }
 }
 
 if (args.includes("--reduced")) {

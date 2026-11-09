@@ -47,7 +47,7 @@ function segsCross(a, b, c, d) {
 
 const DIRS = { e: [1, 0], w: [-1, 0], s: [0, 1], n: [0, -1] };
 const ITEM_KINDS = ["pill", "chip", "hex", "crate", "letter"];
-const BOLTED = new Set(["rack", "hashmap", "pigeonholes", "lru", "selector", "cutter", "press", "plate", "record", "splitter", "dock", "heap", "bits", "grid", "graph", "counter", "arena", "fanout", "merge", "btree", "trie", "page", "workers", "pool", "swapbuffer", "floormap"]);
+const BOLTED = new Set(["chain", "turnstile", "rack", "hashmap", "pigeonholes", "lru", "selector", "cutter", "press", "plate", "record", "splitter", "dock", "heap", "bits", "grid", "graph", "counter", "arena", "fanout", "merge", "btree", "trie", "page", "workers", "pool", "swapbuffer", "floormap"]);
 
 function cellsRow(x, y, n, cw, ch, gap = 0) {
   return Array.from({ length: n }, (_, i) => ({ x: x + i * (cw + gap), y, w: cw, h: ch }));
@@ -56,6 +56,14 @@ function cellsRow(x, y, n, cw, ch, gap = 0) {
 function cellsCol(x, y, n, cw, ch, gap = 0, upward = false) {
   return Array.from({ length: n }, (_, i) => ({ x, y: upward ? y - (i + 1) * ch - i * gap : y + i * (ch + gap), w: cw, h: ch }));
 }
+
+const ringCell = (cx, cy, rIn, rOut, a0, a1, gap) => {
+  const g = (gap * Math.PI) / 180, s0 = a0 + g, s1 = a1 - g, large = s1 - s0 > Math.PI ? 1 : 0;
+  const P = (r, a) => `${r1(cx + Math.cos(a) * r)} ${r1(cy + Math.sin(a) * r)}`;
+  const am = (a0 + a1) / 2, rm = (rIn + rOut) / 2, arc = rm * (s1 - s0);
+  const w = Math.max(10, arc * 0.92), h = rOut - rIn - 4;
+  return { path: `M${P(rOut, s0)}A${rOut} ${rOut} 0 ${large} 1 ${P(rOut, s1)}L${P(rIn, s1)}A${rIn} ${rIn} 0 ${large} 0 ${P(rIn, s0)}Z`, x: cx + Math.cos(am) * rm - w / 2, y: cy + Math.sin(am) * rm - h / 2, w, h };
+};
 
 const MACHINES = {
   rack(m, x, y) {
@@ -69,17 +77,15 @@ const MACHINES = {
     return { w, h: h + 5, body: { x, y, w, h }, svg, cells, pointer };
   },
   drum(m, x, y) {
-    const n = m.cells.length, R = m.radius ?? (n > 6 ? 56 : 46), cx = x + R, cy = y + R;
-    let svg = `<circle cx="${cx}" cy="${cy}" r="${R}" class="body"/><circle cx="${cx}" cy="${cy}" r="${R * 0.28}" class="hub"/>`;
+    const n = m.cells.length, R = m.radius ?? (n > 6 ? 58 : 48), cx = x + R, cy = y + R, rIn = R * 0.4;
+    let svg = `<circle cx="${cx}" cy="${cy}" r="${R}" class="body"/><circle cx="${cx}" cy="${cy}" r="${R - 3}" class="ring-well"/>`;
     const cells = [];
     for (let i = 0; i < n; i++) {
-      const a0 = (i / n) * 2 * Math.PI - Math.PI / 2;
-      svg += `<path d="M${r1(cx + Math.cos(a0) * R * 0.28)} ${r1(cy + Math.sin(a0) * R * 0.28)}L${r1(cx + Math.cos(a0) * R)} ${r1(cy + Math.sin(a0) * R)}" class="seam"/>`;
-      const am = a0 + Math.PI / n, rr = R * 0.66;
-      const cw = m.cellW ?? 24;
-      cells.push({ x: cx + Math.cos(am) * rr - cw / 2, y: cy + Math.sin(am) * rr - 9, w: cw, h: 18, round: true });
+      const a0 = (i / n) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / n) * 2 * Math.PI - Math.PI / 2;
+      cells.push(ringCell(cx, cy, rIn + 2, R - 5, a0, a1, 1.6));
     }
-    const pointer = { mode: "rot", cx, cy, r: R + 7, tipLabel: R + 16, angle: (i) => ((i + 0.5) / n) * 360 - 90 };
+    svg += `<circle cx="${cx}" cy="${cy}" r="${r1(rIn - 1)}" class="hub"/><circle cx="${cx}" cy="${cy}" r="3" class="pivot"/>`;
+    const pointer = { mode: "rot", cx, cy, r: R, bezel: true, tipLabel: R + 19, angle: (i) => ((i + 0.5) / n) * 360 - 90 };
     return { w: 2 * R, h: 2 * R, body: { x, y, w: 2 * R, h: 2 * R }, svg, cells, pointer };
   },
   hopper(m, x, y) {
@@ -142,7 +148,8 @@ const MACHINES = {
     }
     svg += `<path d="M${r1(listX - 14)} ${y + 6}V${y + h - 6}" class="seam"/>`;
     const last = cells.at(-1);
-    svg += `<path d="M${r1(last.x + last.w + 4)} ${r1(ly + 22)}l10 ${r1(y + h - ly - 22)}M${r1(last.x + last.w - 6)} ${r1(ly + 24)}l10 ${r1(y + h - ly - 24)}" class="seam"/>`;
+    const ty = ly + 26;
+    if (y + h - ty > 8) svg += `<path d="M${r1(last.x)} ${r1(ty)}H${r1(last.x + last.w)}L${r1(last.x + last.w + 12)} ${r1(y + h - 1)}H${r1(last.x + 12)}Z" class="tray"/><path d="M${r1(last.x + 6)} ${r1(ty + 4)}l8 ${r1(y + h - ty - 8)}" class="seam"/>`;
     const ends = nn ? [{ x: cells[nb].x + nw / 2, y: ly - 7, s: m.mru ?? "MRU" }, { x: last.x + nw / 2, y: ly - 7, s: m.lruLabel ?? "LRU" }] : [];
     const pointer = { mode: "y", at: (i) => ({ x: x + pad - 1, y: y + pad + i * ch + ch / 2, w: idxW + 2, h: ch - 2 }) };
     return { w, h, body: { x, y, w, h }, svg, cells, pointer, idx, ends };
@@ -165,7 +172,7 @@ const MACHINES = {
       }
     }
     const h = cells.reduce((a, c) => Math.max(a, c.y + c.h), y) - y + 6;
-    svg = rect(x, y, w, h, "frame", 3) + svg;
+    svg = rect(x, y, w, h, "body", 4) + svg;
     return { w, h, body: { x, y, w, h }, svg, cells };
   },
   selector(m, x, y) {
@@ -185,8 +192,9 @@ const MACHINES = {
     const regs = m.cells.length, w = Math.max(76, regs * (m.cellW ?? 34) + 12), h = 56 + (regs ? 26 : 0);
     let svg = rect(x, y, w, h, "body", 4);
     const mx = x + w / 2;
-    const blade = `<path d="M${mx - 10} ${y + 6}H${mx + 10}L${mx + 3} ${y + 30}H${mx - 3}Z" class="blade"/>`;
-    svg += `<path d="M${x + 8} ${y + 40}H${x + w - 8}" class="slot"/><path d="M${mx - 18} ${y + 40}v-6M${mx + 18} ${y + 40}v-6" class="seam"/>`;
+    svg += `<path d="M${mx - 17} ${y + 5}V${y + 41}M${mx + 17} ${y + 5}V${y + 41}M${mx - 20} ${y + 5}H${mx + 20}" class="frame-bar"/>`;
+    svg += rect(x + 9, y + 41, w - 18, 4, "bed", 1);
+    const blade = `<path d="M${mx - 13} ${y + 9}H${mx + 13}V${y + 24}L${mx - 13} ${y + 31}Z" class="blade"/><path d="M${mx} ${y + 5}V${y + 9}" class="rod"/>`;
     const cells = cellsRow(x + 6, y + 52, regs, m.cellW ?? 34, 22);
     return { w, h, body: { x, y, w, h }, svg, cells, work: [{ type: "stamp", svg: blade, dy: 8 }] };
   },
@@ -207,15 +215,15 @@ const MACHINES = {
     return { w, h, body: { x, y, w, h }, svg, cells };
   },
   chain(m, x, y) {
-    const n = m.cells.length, cw = m.cellW ?? 30, ch = 22, gap = m.doubly ? 18 : 14;
-    const cells = cellsRow(x, y + 4, n, cw, ch, gap);
-    let svg = "";
+    const n = m.cells.length, cw = m.cellW ?? 30, ch = 22, gap = m.doubly ? 18 : 14, pad = 6;
+    const cells = cellsRow(x + pad, y + pad, n, cw, ch, gap);
+    const w = n * cw + (n - 1) * gap + pad * 2, h = ch + pad * 2;
+    let svg = rect(x, y, w, h, "body", 4);
     for (let i = 0; i < n - 1; i++) {
       const a = cells[i], b = cells[i + 1];
       if (m.doubly) svg += `<path d="M${r1(a.x + a.w)} ${r1(a.y + 7)}H${r1(b.x - 2)}" class="link" marker-end="url(#bl-arrow)"/><path d="M${r1(b.x)} ${r1(a.y + 15)}H${r1(a.x + a.w + 2)}" class="link" marker-end="url(#bl-arrow)"/>`;
       else svg += `<path d="M${r1(a.x + a.w)} ${r1(a.y + ch / 2)}H${r1(b.x - 2)}" class="link" marker-end="url(#bl-arrow)"/>`;
     }
-    const w = n * cw + (n - 1) * gap, h = ch + 8;
     return { w, h, body: { x, y, w, h }, svg, cells, round: true };
   },
   record(m, x, y) {
@@ -227,14 +235,14 @@ const MACHINES = {
     return { w, h, body: { x, y, w, h }, svg, cells, valueAnchor: "start" };
   },
   turnstile(m, x, y) {
-    const R = 20, cx = x + R + 4, cy = y + R + 4;
-    let svg = `<circle cx="${cx}" cy="${cy}" r="${R + 4}" class="body"/>`;
+    const R = 20, w = 2 * R + 14, cx = x + w / 2, cy = y + w / 2;
+    const svg = rect(x, y, w, w, "body", 4) + `<circle cx="${cx}" cy="${cy}" r="${R + 3}" class="ring-well"/>`;
     const pointer = { mode: "rot", cx, cy, r: R, angle: (i) => i * 60, arms: true };
-    return { w: 2 * R + 8, h: 2 * R + 8, body: { x, y, w: 2 * R + 8, h: 2 * R + 8 }, svg, cells: [], pointer };
+    return { w, h: w, body: { x, y, w, h: w }, svg, cells: [], pointer };
   },
   splitter(m, x, y) {
-    const w = m.w ?? 56, h = m.h ?? 64;
-    const svg = rect(x, y, w, h, "body", 4) + rect(x + 4, y + 4, w - 8, h - 8, "well", 3);
+    const w = m.w ?? 64, h = m.h ?? 72;
+    const svg = rect(x, y, w, h, "body", 4);
     return { w, h, body: { x, y, w, h }, svg, cells: [], flap: { cx: x + w / 2, cy: y + h / 2 } };
   },
   heap(m, x, y) {
@@ -323,8 +331,8 @@ const MACHINES = {
     return { w, h, body: { x, y, w, h }, svg, cells, pointer };
   },
   fanout(m, x, y) {
-    const w = m.w ?? 44, h = m.h ?? 60;
-    const svg = rect(x, y, w, h, "body", 4) + rect(x + 4, y + 4, w - 8, h - 8, "well", 3);
+    const w = m.w ?? 56, h = m.h ?? 64;
+    const svg = rect(x, y, w, h, "body", 4);
     return { w, h, body: { x, y, w, h }, svg, cells: [], bus: { cx: x + w / 2, cy: y + h / 2 } };
   },
   btree(m, x, y) {
@@ -376,24 +384,26 @@ const MACHINES = {
     return { w, h, body: { x, y, w, h }, svg, cells, pointer, init: nodes.map(([, c]) => c) };
   },
   tape(m, x, y) {
-    const n = m.cells.length, cw = m.cellW ?? 34, ch = 22, pad = 6, tail = 28, headW = 14;
+    const n = m.cells.length, cw = m.cellW ?? 34, ch = 24, pad = 6, tail = 28, headW = 16;
     const w = pad + n * cw + tail + headW, h = ch + 18;
     let svg = rect(x, y, w - headW, h, "tape", 2);
-    for (let hx = x + 5; hx < x + w - headW - 6; hx += 10) svg += rect(hx, y + 2.5, 4, 3, "hole", 1) + rect(hx, y + h - 5.5, 4, 3, "hole", 1);
-    const cells = cellsRow(x + pad, y + 9, n, cw, ch);
-    svg += rect(x + pad + n * cw + 2, y + 9, tail - 6, ch, "free", 2);
-    svg += rect(x + w - headW, y + 4, headW, h - 8, "body", 2) + `<path d="M${x + w - headW} ${y + h / 2}h-5" class="rod"/>`;
+    for (let hx = x + 8; hx < x + w - headW - 8; hx += 18) svg += rect(hx, y + 2.5, 5, 3.5, "hole", 1);
+    const cells = cellsRow(x + pad, y + 10, n, cw, ch);
+    svg += rect(x + pad + n * cw + 2, y + 10, tail - 6, ch, "free", 2);
+    svg += rect(x + w - headW, y + 3, headW, h - 6, "body", 3) + `<path d="M${x + w - headW - 1} ${y + h / 2 - 5}l-6 5l6 5z" class="head-tri"/>`;
     const pointer = { mode: "x", above: true, at: (i) => ({ x: i >= n ? x + pad + n * cw + 8 : cells[i].x + cw / 2, y: y - 1 }) };
     return { w, h, body: { x, y, w, h }, svg, cells, pointer };
   },
   page(m, x, y) {
-    const ns = m.slots ?? 3, nt = Math.max(0, m.cells.length - ns), w = m.w ?? 132, pad = 6, slotW = m.slotW ?? 28, th = 18, h = m.h ?? 32 + nt * th + 34;
-    let svg = rect(x, y, w, h, "body", 3) + rect(x + pad, y + pad, w - pad * 2, 8, "idx-rail", 2);
+    const ns = m.slots ?? 3, nt = Math.max(0, m.cells.length - ns), slotW = m.slotW ?? 34, pad = 6, th = 18;
+    const w = m.w ?? Math.max(132, ns * slotW + pad * 2), h = m.h ?? 32 + nt * th + 40;
+    let svg = rect(x, y, w, h, "body", 3) + rect(x + pad, y + pad, w - pad * 2, 9, "idx-rail", 2);
+    svg += rect(x + pad + 3, y + pad + 2, 18, 5, "hdr-f", 1) + rect(x + pad + 24, y + pad + 2, 12, 5, "hdr-f", 1);
     const cells = [];
-    for (let i = 0; i < ns; i++) cells.push({ x: x + pad + i * slotW, y: y + pad + 11, w: slotW - 2, h: 16 });
+    for (let i = 0; i < ns; i++) cells.push({ x: x + pad + i * slotW, y: y + pad + 12, w: slotW - 2, h: 17 });
     for (let j = 0; j < nt; j++) cells.push({ x: x + pad, y: y + h - pad - (j + 1) * th, w: w - pad * 2, h: th - 1 });
-    const freeTop = y + pad + 30, freeBot = y + h - pad - nt * th - 3;
-    if (freeBot - freeTop > 6) svg += rect(x + pad, freeTop, w - pad * 2, freeBot - freeTop, "free", 2) + `<path d="M${x + w / 2} ${freeTop + 4}v6m0 ${r1(freeBot - freeTop - 20)}v6" class="seam"/>`;
+    const freeTop = y + pad + 33, freeBot = y + h - pad - nt * th - 3, mx = x + w / 2;
+    if (freeBot - freeTop > 14) svg += rect(x + pad, freeTop, w - pad * 2, freeBot - freeTop, "free", 2) + `<path d="M${mx - 4} ${freeTop + 3}h8l-4 5zM${mx - 4} ${freeBot - 3}h8l-4 -5z" class="arrowhead"/>`;
     return { w, h, body: { x, y, w, h }, svg, cells };
   },
   workers(m, x, y) {
@@ -426,8 +436,9 @@ const MACHINES = {
   bucket(m, x, y) {
     const n = m.cells.length, cols = m.cols ?? 3, rows = Math.ceil(n / cols), d = 13, top = 16, w = cols * d + 34, h = top + rows * d + 14;
     const bx0 = x + 6, bx1 = x + w - 6;
-    let svg = `<path d="M${x + 4} ${y + 3}H${x + 20}V${y + 10}" class="tap"/>`;
-    const drip = `<circle cx="${x + 20}" cy="${y + 13}" r="2.2" class="drip"/>`;
+    let svg = `<path d="M${x + 2} ${y + 5}H${x + 21}" class="pipe"/><path d="M${x + 21} ${y + 5}V${y + 11}" class="tap"/>`;
+    svg += `<circle cx="${x + 11}" cy="${y + 5}" r="3.6" class="gear"/><path d="M${x + 8.5} ${y + 2.5}l5 5M${x + 13.5} ${y + 2.5}l-5 5" class="tooth"/>`;
+    const drip = `<circle cx="${x + 21}" cy="${y + 14}" r="2.2" class="drip"/>`;
     svg += `<path d="M${bx0} ${y + top}L${bx0 + 6} ${y + h}H${bx1 - 6}L${bx1} ${y + top}" class="bucket"/>`;
     const cells = [];
     for (let i = 0; i < n; i++) {
@@ -437,16 +448,17 @@ const MACHINES = {
     return { w, h, body: { x, y, w, h }, svg, cells, work: [{ type: "drip", svg: drip }] };
   },
   timerwheel(m, x, y) {
-    const n = m.cells.length, R = m.radius ?? (n > 8 ? 60 : 52), cx = x + R, cy = y + R, cw = m.cellW ?? 26;
-    let svg = `<circle cx="${cx}" cy="${cy}" r="${R}" class="body"/><circle cx="${cx}" cy="${cy}" r="${R - 5}" class="well"/>`;
+    const n = m.cells.length, R = m.radius ?? (n > 8 ? 62 : 54), cx = x + R, cy = y + R, rIn = R * 0.38, band = 8;
+    let svg = `<circle cx="${cx}" cy="${cy}" r="${R}" class="body"/><circle cx="${cx}" cy="${cy}" r="${R - band}" class="ring-well"/>`;
     const ang = (i) => (i / n) * 360 - 90;
     const cells = [];
     for (let i = 0; i < n; i++) {
-      const a = (ang(i) * Math.PI) / 180;
-      svg += `<path d="M${r1(cx + Math.cos(a) * (R - 5))} ${r1(cy + Math.sin(a) * (R - 5))}L${r1(cx + Math.cos(a) * (R - 11))} ${r1(cy + Math.sin(a) * (R - 11))}" class="tick"/>`;
-      cells.push({ x: cx + Math.cos(a) * R * 0.64 - cw / 2, y: cy + Math.sin(a) * R * 0.64 - 8, w: cw, h: 16, round: true });
+      const a0 = (ang(i) * Math.PI) / 180, a1 = (ang(i + 1) * Math.PI) / 180;
+      svg += `<path d="M${r1(cx + Math.cos(a0) * (R - band))} ${r1(cy + Math.sin(a0) * (R - band))}L${r1(cx + Math.cos(a0) * (R - 2))} ${r1(cy + Math.sin(a0) * (R - 2))}" class="tick"/>`;
+      cells.push(ringCell(cx, cy, rIn + 2, R - band - 3, a0, a1, 1.6));
     }
-    const pointer = { mode: "rot", cx, cy, r: R * 0.88, angle: ang, needle: true };
+    svg += `<circle cx="${cx}" cy="${cy}" r="${r1(rIn - 1)}" class="hub"/>`;
+    const pointer = { mode: "rot", cx, cy, r: rIn - 6, angle: (i) => ((i + 0.5) / n) * 360 - 90, needle: true };
     return { w: 2 * R, h: 2 * R, body: { x, y, w: 2 * R, h: 2 * R }, svg, cells, pointer };
   },
   swapbuffer(m, x, y) {
@@ -485,7 +497,9 @@ const MACHINES = {
   dock(m, x, y) {
     const n = m.cells.length, cw = m.cellW ?? 46;
     const w = m.w ?? Math.max(58, cw + 16), h = m.h ?? 58;
-    let svg = rect(x, y, w, h, "dock", 2) + rect(x + 6, y + 6, w - 12, h - 12, "bay", 1);
+    let svg = rect(x, y, w, h, "body", 3) + rect(x + 6, y + 6, w - 12, h - 12, "shutter", 1);
+    for (let yy = y + 11; yy < y + h - 8; yy += 6) svg += `<path d="M${x + 7} ${yy}H${x + w - 7}" class="slat-line"/>`;
+    svg += rect(x + w / 2 - 7, y + h - 11, 14, 3, "head", 1);
     const cells = cellsCol(x + (w - cw) / 2, y + (h - n * 22) / 2, n, cw, 22);
     return { w, h, body: { x, y, w, h }, svg, cells };
   },
@@ -1000,9 +1014,32 @@ export function factory(opts) {
         for (const [p, q] of [[[bx, by], e0], [e0, t0]]) for (let k = 1; k <= 8; k++) samples.push([p[0] + ((q[0] - p[0]) * k) / 8, p[1] + ((q[1] - p[1]) * k) / 8]);
         return samples.every(([px, py]) => px > 4 && px < W - 4 && py > HEAD + 4 && py < HEAD + floorH - 4 && !others.some((o) => px > o.x && px < o.x + o.w && py > o.y && py < o.y + o.h));
       };
+      const beltSegs2 = belts.filter((e) => e.pts).flatMap((e) => e.pts.slice(1).map((p, i) => [e.pts[i], p]));
+      const clearOfBelts = ([a0, a1]) => {
+        const e0 = [bx + Math.cos((a0 * Math.PI) / 180) * L1, by + Math.sin((a0 * Math.PI) / 180) * L1];
+        const t0 = [e0[0] + Math.cos(((a0 + a1) * Math.PI) / 180) * L2, e0[1] + Math.sin(((a0 + a1) * Math.PI) / 180) * L2];
+        const pts2 = [];
+        for (const [p, q] of [[[bx, by], e0], [e0, t0]]) for (let k = 2; k <= 8; k++) pts2.push([p[0] + ((q[0] - p[0]) * k) / 8, p[1] + ((q[1] - p[1]) * k) / 8]);
+        return pts2.every(([px, py]) => beltSegs2.every(([a, b]) => {
+          const minx = Math.min(a[0], b[0]) - 9, maxx = Math.max(a[0], b[0]) + 9, miny = Math.min(a[1], b[1]) - 9, maxy = Math.max(a[1], b[1]) + 9;
+          return !(px > minx && px < maxx && py > miny && py < maxy);
+        }));
+      };
       const candidates = [];
       for (const d of [-40, 40, -70, 70, 0, -110, 110, -150, 150, 180]) for (const f of [115, -115, 140, -140]) candidates.push([meanA + 180 + d, f]);
-      const rest = candidates.find(poseClear) ?? [meanA + 180 - 40, 115];
+      const roominess = ([a0, a1]) => {
+        const e0 = [bx + Math.cos((a0 * Math.PI) / 180) * L1, by + Math.sin((a0 * Math.PI) / 180) * L1];
+        const t0 = [e0[0] + Math.cos(((a0 + a1) * Math.PI) / 180) * L2, e0[1] + Math.sin(((a0 + a1) * Math.PI) / 180) * L2];
+        let best = Infinity;
+        for (const [p, q] of [[[bx, by], e0], [e0, t0]]) for (let k = 3; k <= 8; k++) {
+          const px = p[0] + ((q[0] - p[0]) * k) / 8, py = p[1] + ((q[1] - p[1]) * k) / 8;
+          for (const o of others) best = Math.min(best, Math.max(0, o.x - px, px - (o.x + o.w)) + Math.max(0, o.y - py, py - (o.y + o.h)));
+          for (const [a, b] of beltSegs2) best = Math.min(best, Math.max(0, Math.min(a[0], b[0]) - px, px - Math.max(a[0], b[0])) + Math.max(0, Math.min(a[1], b[1]) - py, py - Math.max(a[1], b[1])));
+        }
+        return best;
+      };
+      const clean = candidates.filter((c) => poseClear(c) && clearOfBelts(c));
+      const rest = clean.length ? clean.reduce((a, b) => (roominess(b) > roominess(a) + 4 ? b : a)) : candidates.find(poseClear) ?? [meanA + 180 - 40, 115];
       const restElbow = [bx + Math.cos((rest[0] * Math.PI) / 180) * L1, by + Math.sin((rest[0] * Math.PI) / 180) * L1];
       const restTip = [restElbow[0] + Math.cos(((rest[0] + rest[1]) * Math.PI) / 180) * L2, restElbow[1] + Math.sin(((rest[0] + rest[1]) * Math.PI) / 180) * L2];
       A.armGeo = { L1, L2, rest, restElbow, restTip };
@@ -1092,7 +1129,7 @@ export function factory(opts) {
         const pad = 5, b = g.body;
         svgHot += rect(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2, "hot", 6, ` opacity="0"${animAttr(windows(m.hot))}`);
       }
-      if (m.kind === "drum" || m.kind === "timerwheel") for (let i = 0; i < m.cells.length; i++) for (let j = i + 1; j < m.cells.length; j++) if (overlap(m.cells[i], m.cells[j], -1)) {
+      if ((m.kind === "drum" || m.kind === "timerwheel") && !m.cells[0]?.path) for (let i = 0; i < m.cells.length; i++) for (let j = i + 1; j < m.cells.length; j++) if (overlap(m.cells[i], m.cells[j], -1)) {
         fail(`${m.id}: drum sectors ${i} and ${j} overlap; raise radius or lower cellW`);
         i = j = m.cells.length;
       }
@@ -1112,7 +1149,7 @@ export function factory(opts) {
           });
           continue;
         }
-        svgCells += c.round ? rect(c.x, c.y, c.w, c.h, "cell", 9) : rect(c.x, c.y, c.w, c.h, "cell", 2);
+        svgCells += c.path ? `<path d="${c.path}" class="cell"/>` : c.round ? rect(c.x, c.y, c.w, c.h, "cell", 9) : rect(c.x, c.y, c.w, c.h, "cell", 2);
         const written = c.events.length > 0;
         if (written) {
           const evs = [...c.events].sort((a, b) => a.t - b.t);
@@ -1123,7 +1160,8 @@ export function factory(opts) {
             if (want !== on) f.push([ev.t, `opacity:${on ? 1 : 0}`], [ev.t + FADE, `opacity:${want ? 1 : 0}`]);
             on = want;
           }
-          svgCells += rect(c.x, c.y, c.w, c.h, "mark", c.round ? 9 : 2, `${on ? "" : ` opacity="0"`}${animAttr(f)}`);
+          const markAttr = `${on ? "" : ` opacity="0"`}${animAttr(f)}`;
+          svgCells += c.path ? `<path d="${c.path}" class="mark"${markAttr}/>` : rect(c.x, c.y, c.w, c.h, "mark", c.round ? 9 : 2, markAttr);
         }
         const states = [{ t: 0, v: c.init }, ...c.events.sort((a, b) => a.t - b.t)];
         const anchor = g.valueAnchor === "start" ? "start" : "middle";
@@ -1170,7 +1208,7 @@ export function factory(opts) {
           const off = (i) => {
             const c = pg.at(i), same = Object.entries(m.pointers).filter(([, q]) => (q.events.length ? q.events.at(-1).i : q.init) === i).map(([nm]) => nm);
             const j = Math.max(0, same.indexOf(name)), cnt = Math.max(1, same.length);
-            return { x: c.x + (j - (cnt - 1) / 2) * 15, y: c.y };
+            return { x: c.x + (j - (cnt - 1) / 2) * 17, y: c.y };
           };
           const fp = off(finalI), nm = name.slice(0, 2);
           const shape = `<circle cx="${r1(fp.x)}" cy="${r1(fp.y)}" r="7.5" class="token"/>` + text(fp.x, fp.y, nm, "token-t", "middle", ` dominant-baseline="central"`);
@@ -1228,7 +1266,11 @@ export function factory(opts) {
           const fa = pg.angle(finalI);
           const rad = (fa * Math.PI) / 180;
           let shape;
-          if (pg.arms) shape = [0, 120, 240].map((d) => { const a = rad + (d * Math.PI) / 180; return `<path d="M${pg.cx} ${pg.cy}L${r1(pg.cx + Math.cos(a) * pg.r)} ${r1(pg.cy + Math.sin(a) * pg.r)}" class="arm"/>`; }).join("");
+          if (pg.arms) shape = [0, 120, 240].map((d) => { const a = rad + (d * Math.PI) / 180; return `<path d="M${pg.cx} ${pg.cy}L${r1(pg.cx + Math.cos(a) * pg.r)} ${r1(pg.cy + Math.sin(a) * pg.r)}" class="arm"/>`; }).join("") + `<circle cx="${pg.cx}" cy="${pg.cy}" r="5" class="hub-cap"/>`;
+          else if (pg.bezel) {
+            const ux = Math.cos(rad), uy = Math.sin(rad), vx = -uy, vy = ux, tip = pg.r + 1, base = pg.r + 10;
+            shape = `<path d="M${r1(pg.cx + ux * tip)} ${r1(pg.cy + uy * tip)}L${r1(pg.cx + ux * base + vx * 5.5)} ${r1(pg.cy + uy * base + vy * 5.5)}L${r1(pg.cx + ux * base - vx * 5.5)} ${r1(pg.cy + uy * base - vy * 5.5)}Z" class="ptr"/>`;
+          }
           else shape = `<path d="M${pg.cx} ${pg.cy}L${r1(pg.cx + Math.cos(rad) * pg.r)} ${r1(pg.cy + Math.sin(rad) * pg.r)}" class="${pg.needle ? "needle" : "arm"}"/><circle cx="${r1(pg.cx + Math.cos(rad) * pg.r)}" cy="${r1(pg.cy + Math.sin(rad) * pg.r)}" r="${pg.needle ? 2.5 : 4}" class="ptr"/>`;
           let frames = null;
           if (evs.length) {
@@ -1367,14 +1409,19 @@ export function factory(opts) {
     }
 
     const moves = timeline.filter((tl) => tl.type === "item" || tl.type === "pulse");
+    const channel = (cx, cy, p, side, kind) => {
+      const corner = side === "e" || side === "w" ? [cx, p[1]] : [p[0], cy];
+      const d = `M${r1(p[0])} ${r1(p[1])}L${r1(corner[0])} ${r1(corner[1])}L${r1(cx)} ${r1(cy)}`;
+      return `<path d="${d}" class="chan-rail"/><path d="${d}" class="chan ${kind === "bus" ? "chan-bus" : ""}"/>`;
+    };
     for (const m of machines.values()) {
       if (!m.geo.bus) continue;
       const { cx, cy } = m.geo.bus;
       for (const e of belts) {
-        if (e.from === m.id && e.p0) svgMachines += `<path d="M${cx} ${cy}L${r1(e.p0[0])} ${r1(e.p0[1])}" class="bus"/>`;
-        if (e.to === m.id && e.p1) svgMachines += `<path d="M${r1(e.p1[0])} ${r1(e.p1[1])}L${cx} ${cy}" class="bus"/>`;
+        if (e.from === m.id && e.p0) svgMachines += channel(cx, cy, e.p0, e.outSide, "bus");
+        if (e.to === m.id && e.p1) svgMachines += channel(cx, cy, e.p1, e.inSide, "bus");
       }
-      svgPorts += `<circle cx="${cx}" cy="${cy}" r="4.5" class="hub-dot"/>`;
+      svgPorts += `<circle cx="${cx}" cy="${cy}" r="6" class="hub-ring"/><circle cx="${cx}" cy="${cy}" r="3.2" class="hub-dot"/>`;
     }
     for (const m of machines.values()) {
       if (!m.geo.flap) continue;
@@ -1384,9 +1431,9 @@ export function factory(opts) {
       const ang = (e) => (Math.atan2(e.p0[1] - cy, e.p0[0] - cx) * 180) / Math.PI;
       const reach = (e) => Math.hypot(e.p0[0] - cx, e.p0[1] - cy);
       const L = Math.min(...outs.map(reach)) * 0.78;
-      for (const e of outs) svgMachines += `<path d="M${cx} ${cy}L${r1(e.p0[0])} ${r1(e.p0[1])}" class="route"/>`;
+      for (const e of outs) svgMachines += channel(cx, cy, e.p0, e.outSide, "route");
       const ins = belts.filter((e) => e.to === m.id && e.p1);
-      for (const e of ins) svgMachines += `<path d="M${r1(e.p1[0])} ${r1(e.p1[1])}L${cx} ${cy}" class="route"/>`;
+      for (const e of ins) svgMachines += channel(cx, cy, e.p1, e.inSide, "route");
       const evs = moves.filter((tl) => tl.e.from === m.id).map((tl) => ({ t: Math.max(0.05, tl.t0 - 0.35), a: ang(tl.e) }));
       const finalA = evs.length ? evs.at(-1).a : ang(outs[0]);
       let frames = null;
@@ -1563,13 +1610,16 @@ export function factory(opts) {
 .lbl{font-size:11px;font-weight:600;fill:var(--mid);letter-spacing:.02em}
 .cond{font-size:10px;font-style:italic;fill:var(--mid)}.sig-t{font-size:10px;fill:var(--mid)}
 .belt-rail{fill:none;stroke:var(--lo);stroke-width:12;stroke-linejoin:round}.belt{fill:none;stroke:var(--belt);stroke-width:9;stroke-linejoin:round}.belt-roll{fill:none;stroke:var(--lo);stroke-width:7;stroke-dasharray:1.6 10.4;opacity:.75}.chev{fill:none;stroke:var(--lo);stroke-width:1.4}
-.mouth{fill:var(--slot)}.ground{fill:var(--paper)}.hood{fill:var(--slot)}.bolt{fill:var(--mid)}.bevel{stroke:var(--hl);stroke-width:1.4;stroke-linecap:round;opacity:.8}
+.mouth{fill:var(--slot)}.ring-well{fill:var(--cell);stroke:var(--lo);stroke-width:1}.shutter{fill:var(--cell);stroke:var(--lo);stroke-width:1}.slat-line{stroke:var(--lo);stroke-width:1}
+.chan-rail{fill:none;stroke:var(--lo);stroke-width:9;stroke-linejoin:round;stroke-linecap:round}.chan{fill:none;stroke:var(--belt);stroke-width:5.5;stroke-linejoin:round;stroke-linecap:round}.hub-ring{fill:var(--body);stroke:var(--ink);stroke-width:1.4}
+.frame-bar{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}.bed{fill:var(--ink)}.head-tri{fill:var(--ink)}.hdr-f{fill:var(--cell)}.arrowhead{fill:var(--mid)}
+.tray{fill:var(--cell);stroke:var(--mid);stroke-width:1.2;stroke-linejoin:round}.pipe{stroke:var(--ink);stroke-width:4;stroke-linecap:round}.hub-cap{fill:var(--body);stroke:var(--ink);stroke-width:1.4}.ground{fill:var(--paper)}.hood{fill:var(--slot)}.bolt{fill:var(--mid)}.bevel{stroke:var(--hl);stroke-width:1.4;stroke-linecap:round;opacity:.8}
 .slat{stroke:var(--accent-ink);stroke-width:1.2;opacity:.55}.flap-l{fill:none;stroke:var(--accent-ink);stroke-width:1.2;opacity:.6}.nodebox{fill:none;stroke:var(--ink);stroke-width:1.2}.tape{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.hole{fill:var(--paper);stroke:var(--lo);stroke-width:.6}
 .rail{stroke:var(--mid);stroke-width:2.2;stroke-linecap:round}.gear{fill:var(--body);stroke:var(--ink);stroke-width:1.4}.tooth{stroke:var(--ink);stroke-width:2}.hook{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round}
 .tap{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round}.drip{fill:var(--accent)}.bucket{fill:var(--body);stroke:var(--ink);stroke-width:1.4;stroke-linejoin:round}
 .split{stroke:var(--mid);stroke-width:1;stroke-dasharray:2 2}.token{fill:var(--accent);stroke:var(--ink);stroke-width:1}.token-t{font-size:8px;font-weight:700;fill:var(--accent-ink)}.bus{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}.hub-dot{fill:var(--accent);stroke:var(--ink);stroke-width:1.2}
 .lamp-off{fill:var(--cell);stroke:var(--lo);stroke-width:1}.free{fill:none;stroke:var(--lo);stroke-dasharray:3 3}.well{fill:var(--cell);stroke:var(--lo);stroke-width:1}.route{fill:none;stroke:var(--lo);stroke-width:1.2;stroke-dasharray:3 3}
-.idx-rail{fill:var(--belt)}.idx-n{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;fill:var(--mid)}.end-t{font-size:8px;font-weight:700;letter-spacing:.06em;fill:var(--mid)}
+.idx-rail{fill:var(--belt)}.idx-n{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;fill:var(--mid)}.end-t{font-size:9px;font-weight:700;letter-spacing:.06em;fill:var(--mid)}
 .ptr-box{fill:none;stroke:var(--accent);stroke-width:2}.arm-seg{stroke:var(--ink);stroke-width:9;stroke-linecap:round}.arm-core{stroke:var(--body);stroke-width:5;stroke-linecap:round}.arm-joint{fill:var(--body);stroke:var(--ink);stroke-width:1.6}.arm-pin{fill:var(--accent)}.grip{fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linecap:round}.pedestal{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.pedestal-ring{fill:var(--cell);stroke:var(--mid);stroke-width:1}
 .sig{fill:none;stroke:var(--mid);stroke-width:1.1;stroke-dasharray:4 3}.arrow{fill:var(--mid)}
 .ptr{fill:var(--accent)}.ptr-t{font-size:9px;font-weight:700;fill:var(--accent)}.arm{stroke:var(--accent);stroke-width:2.4;stroke-linecap:round}.needle{stroke:var(--accent);stroke-width:2}

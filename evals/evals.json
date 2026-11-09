@@ -4,10 +4,11 @@
     "axes": {
       "correctness": "Every value, condition, write and source pointer matches the code at the inspected revision; nothing is invented; gaps are disclosed.",
       "visual_design": "Machines are cast by behaviour from the catalogue; one accent; calm tones; aligned main route; consistent spacing; both themes work.",
-      "visual_clarity": "A newcomer can name each structure from its shape and follow the item from input to output in under a minute without reading prose; no text walls."
+      "visual_clarity": "A newcomer can name each structure from its shape and follow the item from input to output in under a minute without reading prose; no text walls.",
+      "beauty": "Each machine scores at least 8/10 on the beauty rubric in references/verify.md (solid body, one motif, cells belong, clean joints, calm, composed at rest), judged on the capture.mjs --machines sheet."
     },
     "scale": "0-10 per axis",
-    "baseline": "velocitty/factorio.svg made by the previous factorio-md skill was scored 9 correctness, 5 visual design, 3 visual clarity by the owner. A new run must beat 5 and 3 without dropping correctness below 9."
+    "baseline": "velocitty/factorio.svg made by the previous factorio-md skill was scored 9 correctness, 5 visual design, 3 visual clarity by the owner. A new run must beat 5 and 3 without dropping correctness below 9. Beauty: after the catalogue review on 2026-11-09 the owner rated the weakest machines 7.5/10; every machine must now reach 8 or more."
   },
   "evals": [
     {
@@ -25,7 +26,8 @@
         "the SVG contains a machine with class m-drum",
         "the SVG contains the values boot, load, ready and tick",
         "the transcript shows capture.mjs was run and its PNGs were opened",
-        "the final summary includes a cast table"
+        "the final summary includes a cast table",
+        "capture.mjs --machines was run, every machine was scored on the beauty rubric, and none scores below 8 at delivery"
       ]
     },
     {
@@ -42,7 +44,8 @@
         "the SVG does not contain the words heap or timestamp",
         "the SVG shows b being evicted, not a",
         "the final summary mentions that README.md does not match the code",
-        "svg check passed and sources: 0 unresolved"
+        "svg check passed and sources: 0 unresolved",
+        "capture.mjs --machines was run, every machine was scored on the beauty rubric, and none scores below 8 at delivery"
       ]
     },
     {
@@ -56,7 +59,8 @@
         "at most 24 elements carry data-machine",
         "no text line on the canvas exceeds 96 characters",
         "the summary offers per-subsystem Line tours",
-        "owner scores: correctness >= 9, visual design > 5, visual clarity > 3"
+        "owner scores: correctness >= 9, visual design > 5, visual clarity > 3",
+        "capture.mjs --machines was run, every machine was scored on the beauty rubric, and none scores below 8 at delivery"
       ]
     },
     {
@@ -68,7 +72,8 @@
         "the output file is parser.svg",
         "the SVG contains a machine with class m-selector",
         "svg check passed and sources: 0 unresolved",
-        "no machine is drawn for the renderer, atlas or presenter"
+        "no machine is drawn for the renderer, atlas or presenter",
+        "capture.mjs --machines was run, every machine was scored on the beauty rubric, and none scores below 8 at delivery"
       ]
     },
     {
@@ -83,6 +88,23 @@
         "the SVG has no 'infinite' animation",
         "the response explains why playback holds its end state",
         "svg check passed"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "review the catalogue for beauty and fix anything that isn't at least an 8",
+      "files": [
+        "examples/catalogue/build.mjs",
+        "kit/beltline.mjs"
+      ],
+      "expected_output": "The agent renders examples/catalogue with capture.mjs --machines, scores every machine kind on the beauty rubric, lists each one below 8 with the specific fault and fix, applies the fixes in the kit (machine drawings) or the build script (placement), rebuilds the catalogue and examples, re-renders the sheet, and reports before and after scores. All checks, the end-state comparison and the test suite still pass.",
+      "expectations": [
+        "a machine sheet was produced with capture.mjs --machines before and after the changes",
+        "every machine kind in the catalogue has a written score",
+        "every machine scores 8 or more after the changes, judged against the rubric",
+        "node --test scripts/*.test.mjs passes",
+        "capture.mjs --reduced reports no difference between the static view and the end state for the catalogue and calc",
+        "docs/tours copies match the rebuilt examples"
       ]
     }
   ]

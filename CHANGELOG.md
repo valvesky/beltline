@@ -9,6 +9,21 @@
 - Examples: `calc` (the small-tour bar), `velocitty` (a real terminal emulator, the Plant-tour bar, linked to its source at 2d5a1a4) and `catalogue`.
 - Evals with a three-axis rubric (correctness, visual design, visual clarity) and two fixture repos.
 
+### Changed (beauty review, from owner review)
+- Redrawn after a catalogue beauty review:
+  - the drum and timer wheel have ring-segment slots, rim markers and a hub hand;
+  - docks are shuttered loading bays;
+  - diverters, fan-outs and merges are channel junctions;
+  - the LRU has a real eviction tray;
+  - the cutter is a guillotine;
+  - the slotted page has a shrinking gap with arrows;
+  - the WAL tape is calmer;
+  - the tower, chain and turnstile have solid, bolted bodies;
+  - the bucket has a valve tap;
+  - floor-map tokens are spaced apart;
+  - arms park in the roomiest pose clear of machines and belts.
+- `capture.mjs --machines` renders every machine at 2x into one sheet. `verify.md` has a beauty rubric and a beauty pass, and the evals score beauty as a fourth axis, with a catalogue eval requiring every machine to reach 8.
+
 ### Changed (factory feel, from owner review)
 - Arms in the catalogue now do what Factorio's filter inserters do: a mixed token stream runs past two arms that pick digits and operators into their bins (a partition). Arms pick at the point on the belt nearest them, and bins filled only by arms count as connected.
 - Streams (`stream`), pipelining (`with: "previous"`), underground belts (`under: true`) and item shapes (`as`/`carries`: chip, hex, crate, letter).

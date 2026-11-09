@@ -31,6 +31,24 @@ Render it and look at it, as a demanding reviewer would, before anyone else does
    node scripts/capture.mjs beltline.svg --at 100 --zoom x,y,w,h
    ```
    On its own, `--zoom` shoots only the close-up. Compare each close-up with the previous round's shot of the same region.
+6. **Beauty pass.** `node scripts/capture.mjs beltline.svg --machines` renders every machine at 2× from its recorded box and tiles them into `beltline-machines.png`. Score each machine against the beauty rubric below. Anything under 8 gets fixed before delivery:
+   - a placement problem (an arm parked badly, a label crowding a cell) is fixed in `build.mjs`;
+   - a drawing problem (the machine itself is ugly) is fixed in the kit, then the catalogue and every example are rebuilt.
+
+## Beauty rubric
+
+Score each machine out of 10 and take away points for each fault:
+
+| Criterion | What a 10 looks like | Typical faults |
+|---|---|---|
+| Solid body | A filled body in the shared stroke weight, or a body that *is* the shape (ring, tube, funnel, bucket). Nothing floats loose. | thin frames, nodes or parts with no plate under them |
+| One motif | One visual idea names the kind at a glance: ring, pyramid, shutters, gears, hooks, guillotine. | generic boxes, two competing ideas, decoration with no meaning |
+| Cells belong | Values sit in slots that are part of the machine. Nothing crosses a value. | pill stickers on top of seams, pointers or arms running through values |
+| Clean joints | Belts enter through slots on the centre line; channels, arms and pointers keep clear of labels and of other machines. | stray strokes, scratches, lines that end in mid-air, labels drifting away from what they name |
+| Calm | Neutral tones plus the one accent, about three line weights, at least 3 px between elements, text at least 9 px at 1×. | clutter, cramped cells, tiny text, colour noise |
+| Composed at rest | The static end state looks finished: arms parked clear, pointers on their slots, nothing half-moved. | arms folded over belts or machines, flaps at odd angles |
+
+Roughly: 10 is all six; take off about 1 for each fault; under 8 means fix it.
 
 A zero audit is necessary, not sufficient. The checks catch geometry and markup faults. Only looking catches a tour that is correct but unclear.
 

@@ -96,6 +96,7 @@ node build.mjs                                  # must print: audit passed
 node <skill>/scripts/check.mjs beltline.svg     # must print: svg check passed
 node <skill>/scripts/check-sources.mjs beltline.svg <repo>   # sources: 0 unresolved
 node <skill>/scripts/capture.mjs beltline.svg --at 0,25,50,75,100 --reduced --img --sheet
+node <skill>/scripts/capture.mjs beltline.svg --machines    # beauty pass: score every machine, fix anything under 8
 ```
 
 **Open and read every PNG you make.** A zero audit is necessary, not sufficient. Look at each frame as a demanding reviewer would:

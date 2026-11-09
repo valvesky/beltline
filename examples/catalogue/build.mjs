@@ -115,7 +115,7 @@ F.machine("mixed", { kind: "dock", at: [1, 64], label: "token stream", external:
   .machine("rest", { kind: "dock", at: [44, 64], label: "everything else", external: true, cells: [""], cellW: 30 })
   .machine("digits", { kind: "rack", at: [6, 69], label: "digits", src, cells: ["", "", "", ""] })
   .machine("ops", { kind: "rack", at: [22, 69], label: "operators", src, cells: ["", "", "", ""] })
-  .machine("armDigits", { kind: "arm", at: [10, 66], label: "filter: digit", src })
+  .machine("armDigits", { kind: "arm", at: [10, 66], label: "filter: digit", labelSide: "w", src })
   .machine("armOps", { kind: "arm", at: [26, 66], label: "filter: op", labelSide: "w", src })
   .machine("parser", { kind: "press", at: [31, 61], label: "parser", src })
   .belt("mixed", "rest", { carries: "hex" })

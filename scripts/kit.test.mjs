@@ -97,7 +97,7 @@ const more = [
   ["signal through a label", (F) => F.machine("s", { kind: "press", at: [10, 7], label: "s()", src: "a.js:7" }).signal("a", "s", { out: "s", in: "w", via: [[2, 7]] }).machine("t", { kind: "record", at: [3, 6], label: "a long label here", src: "a.js:8", cells: ["x 1"], labelSide: "e" }).belt("t", "s", { out: "n", in: "n", via: [[4, 5], [11, 5]] }).step({ belt: "a->b" }), /runs through text|passes through|cross/],
   ["caption too long with its prefix", (F) => F.trace("a fairly long trace name").step({ belt: "a->b", caption: "x".repeat(80) }), /with its prefix/],
   ["gap too long", (F) => F.gap("y".repeat(95)).step({ belt: "a->b" }), /gap .* is longer/],
-  ["drum sectors overlap", (F) => F.machine("d", { kind: "drum", at: [12, 6], label: "ring", src: "a.js:9", radius: 30, cellW: 40, cells: Array(8).fill("") }).belt("b", "d").step({ belt: "a->b" }), /drum sectors/],
+  ["drum slots too small for their values", (F) => F.machine("d", { kind: "drum", at: [12, 6], label: "ring", src: "a.js:9", radius: 30, cells: Array(8).fill("xyz") }).belt("b", "d").step({ belt: "a->b" }), /does not fit/],
 ];
 for (const [name, plant, expect] of more) {
   test(`planted fault fails the audit: ${name}`, () => {
@@ -304,7 +304,7 @@ test("a step can move items along several belts at once", () => {
   const starts = [...out.svg.matchAll(/<g class="item[^"]*" opacity="0" id="(bl-a\d+)">/g)].map((m) => out.svg.match(new RegExp(`#${m[1]}\\{animation-name:(k\\d+)\\}`))[1]).map((k) => out.svg.match(new RegExp(`@keyframes ${k}\\{([^\\n]+)\\}`))[1].match(/([\d.]+)%\{opacity:1/)[1]);
   assert.equal(starts.length, 2);
   assert.equal(starts[0], starts[1], "the two items do not leave together");
-  assert.equal((out.svg.match(/class="bus"/g) ?? []).length, 2);
+  assert.equal((out.svg.match(/class="chan chan-bus"/g) ?? []).length, 2);
 });
 
 test("a graph pointer walks from node to node", () => {
