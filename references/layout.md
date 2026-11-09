@@ -35,6 +35,11 @@
 - **Crossings:** the audit fails belts that cross. Reorder the machines, move a lane, or turn one of the belts into a signal if it carries no traced data.
 - **Paired belts** (push and pop, request and reply) between the same two machines run side by side. The chevrons show which way each one flows.
 
+## Motion the kit adds for you
+
+- **Belts run.** Belts have side rails and rollers that scroll for the whole playback, then stop at the end state.
+- **Machines work.** While a machine is active (`at`), or as it takes in or hands on an item, its moving part runs: the press stamps, the cutter chops, worker gears turn, the bucket's tap drips, the counter's lever pulls. At rest everything is in its home pose, so the static view is unchanged.
+
 ## Two zoom levels
 
 - **At 1×** the reader sees the shape of the factory: the main row, which machines are stores, where the branches go.

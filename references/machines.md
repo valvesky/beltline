@@ -42,7 +42,7 @@ Belts never just touch a machine: each one enters through a dark slot.
 | Struct, record, registers, cursor, config | `record` | cabinet of labelled drawers | `field value`, one per drawer | none |
 | Lock, mutex, semaphore, gate | `turnstile` | three-arm gate | none | `gate` turns 60° per index |
 | Branch, dispatch, `match`, router | `splitter` | diverter: one inlet, an outlet per route, and a flap that swings to the route each item takes | none: conditions go on the outgoing belt labels | none: the kit animates the flap from the steps |
-| An operation that moves individual pieces: move-to-front, sorting, eviction into another store, compaction | `arm` | a long double-jointed arm on a pedestal that reaches into a cell, grips the piece, carries it and sets it down | none | none: the kit solves the joints from the cells it reaches |
+| Placing an arriving item into a specific slot, or taking a piece out of a store onto a belt (eviction, pop, flush) | `arm` | a long double-jointed arm on a pedestal beside a belt end that grips the item and sets it in the slot, or the reverse | none | none: the kit solves the joints from the belt end and the cell |
 | Process boundary, OS, file, socket, user | `dock` | hatched loading bay (`external: true` if there is no first-party source) | optional, e.g. the final output | none |
 
 ## Rules for casting
@@ -53,7 +53,7 @@ Belts never just touch a machine: each one enters through a dark slot.
 4. **Values are short and real.** `0x1b`, `'x'`, `csi`, `14`. If the real value is long, show its shape (`"2*(3+4)"`, `7 tokens`, `{fg 170}`) and put the detail in the caption.
 5. **Pick by behaviour, not by type name.** A `Vec` used as a stack is a `stack`. A map plus a linked list kept in recency order is an `lru`, even if the code calls it a cache. A plain bounded map with no recency list is a `hashmap` with `evict: true`. A `struct` that is really a state machine is a `selector`.
 6. **When nothing fits,** use the closest kind and say so in the cast table, or draw a custom shape with `F.raw(svg, box)`. Keep it the same size as the kit machines and colour it with the kit classes (`body`, `cell`, `seam`, `mark`).
-7. **Use an arm only when moving a piece is the point.** An LRU hit that relinks a node to the front, an insertion sort, a compaction, an eviction into a free list: these are worth an arm. Pushing onto a stack or writing a cell is not, so use plain writes. One arm per structure, parked beside it, is the norm.
+7. **Arms work the boundary between a belt and a slot, the way Factorio's inserters do.** Place one where the exact slot matters: an item arriving on a belt goes into the bucket it hashes to, the heap's next free slot, or the arena block it is given. Or use one when a piece leaves a store on a belt: an eviction, a pop, a flush. A move inside one structure (an LRU relink, a sort, a shift) is a plain write; the kit rejects an arm doing it. One arm per belt end that needs it, standing beside the belt's last stretch.
 8. **Merge the trivial.** Three tiny config structs read once are one `record`, or nothing at all.
 
 ## The cast table

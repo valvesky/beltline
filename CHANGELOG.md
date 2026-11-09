@@ -9,6 +9,12 @@
 - Examples: `calc` (the small-tour bar), `velocitty` (a real terminal emulator, the Plant-tour bar, linked to its source at 2d5a1a4) and `catalogue`.
 - Evals with a three-axis rubric (correctness, visual design, visual clarity) and two fixture repos.
 
+### Changed (factory feel, from owner review)
+- Arms now do the inserter's job: they take an arriving item off the end of a belt and set it in the exact slot, or lift a piece out of a store onto an outgoing belt. A move inside one structure is rejected; use writes. Arms pick a resting pose that clears every machine.
+- Belts have side rails and rollers that scroll during playback.
+- Machines visibly work while active or handling an item: the press stamps, the cutter chops, gears turn, the tap drips, the lever pulls.
+- Fixed: arms at rest were drawn detached when motion was reduced, because their resting rotation was a transform attribute that transform-origin offset a second time. Resting rotations are now inline CSS, and capture.mjs compares the end state at half size so rasterization noise on animated layers no longer hides or fakes a mismatch.
+
 ### Changed (catalogue, from owner review)
 - Ten machines for databases, servers and game engines: `btree`, `trie`, `tape` (WAL), `page` (slotted page), `workers`, `pool`, `bucket` (token bucket), `timerwheel`, `swapbuffer` (double buffer) and `floormap` (spatial grid with moving entity tokens). Pointers resting on the same slot stack their names.
 - Nine more machines: `heap` (pyramid), `deque` (two-ended tube), `bits` (lamp strip for bitsets and bloom filters), `grid` (matrix and DP tables), `graph` (pegboard with a walking ring), `counter` (odometer), `arena` (bump allocator), and `fanout` and `merge` (bus wiring for broadcast and join). A step can move items along several belts at once.

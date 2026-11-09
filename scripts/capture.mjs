@@ -121,7 +121,10 @@ if (args.includes("--reduced")) {
       errors.push(`could not shoot both the end state and the reduced-motion view at ${w}px`);
       continue;
     }
-    const r = spawnSync("magick", ["compare", "-metric", "AE", "-fuzz", "8%", end, red, "null:"], { encoding: "utf8" });
+    const halfA = join(work, `cmp-a-${w}.png`), halfB = join(work, `cmp-b-${w}.png`);
+    spawnSync("magick", [end, "-resize", "50%", halfA]);
+    spawnSync("magick", [red, "-resize", "50%", halfB]);
+    const r = spawnSync("magick", ["compare", "-metric", "AE", "-fuzz", "14%", halfA, halfB, "null:"], { encoding: "utf8" });
     const diff = parseFloat((r.stderr || "").trim());
     if (r.error || r.status === null || r.status > 1 || !Number.isFinite(diff)) {
       errors.push(`could not compare the reduced-motion view with the end state (ImageMagick 7 "magick" is required): ${r.error?.message ?? r.stderr?.trim()}`);

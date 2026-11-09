@@ -183,19 +183,19 @@ const MACHINES = {
     const regs = m.cells.length, w = Math.max(76, regs * (m.cellW ?? 34) + 12), h = 56 + (regs ? 26 : 0);
     let svg = rect(x, y, w, h, "body", 4);
     const mx = x + w / 2;
-    svg += `<path d="M${mx - 10} ${y + 6}H${mx + 10}L${mx + 3} ${y + 30}H${mx - 3}Z" class="blade"/>`;
+    const blade = `<path d="M${mx - 10} ${y + 6}H${mx + 10}L${mx + 3} ${y + 30}H${mx - 3}Z" class="blade"/>`;
     svg += `<path d="M${x + 8} ${y + 40}H${x + w - 8}" class="slot"/><path d="M${mx - 18} ${y + 40}v-6M${mx + 18} ${y + 40}v-6" class="seam"/>`;
     const cells = cellsRow(x + 6, y + 52, regs, m.cellW ?? 34, 22);
-    return { w, h, body: { x, y, w, h }, svg, cells };
+    return { w, h, body: { x, y, w, h }, svg, cells, work: [{ type: "stamp", svg: blade, dy: 8 }] };
   },
   press(m, x, y) {
     const regs = m.cells.length, w = Math.max(76, regs * (m.cellW ?? 34) + 12), h = 56 + (regs ? 26 : 0);
     let svg = rect(x, y, w, h, "body", 4);
     const mx = x + w / 2;
-    svg += `<path d="M${mx} ${y + 4}V${y + 16}" class="rod"/>` + rect(mx - 16, y + 16, 32, 10, "head", 2);
+    const ram = `<path d="M${mx} ${y + 4}V${y + 16}" class="rod"/>` + rect(mx - 16, y + 16, 32, 10, "head", 2);
     svg += `<path d="M${x + 10} ${y + 44}H${x + w - 10}" class="slot"/>` + rect(mx - 12, y + 36, 24, 6, "die", 1);
     const cells = cellsRow(x + 6, y + 52, regs, m.cellW ?? 34, 22);
-    return { w, h, body: { x, y, w, h }, svg, cells };
+    return { w, h, body: { x, y, w, h }, svg, cells, work: [{ type: "stamp", svg: ram, dy: 8 }] };
   },
   plate(m, x, y) {
     const cols = m.cols ?? 8, rows = m.rows ?? 5, px = m.pixel ?? 10, pad = 6;
@@ -301,8 +301,9 @@ const MACHINES = {
     let svg = rect(x, y, w, h, "body", 4) + rect(x + pad - 2, y + pad - 2, n * dw + 4, dh + 4, "well", 2);
     const cells = cellsRow(x + pad, y + pad, n, dw, dh);
     for (const c of cells) svg += `<path d="M${r1(c.x + 2)} ${r1(c.y + 4)}h${r1(c.w - 4)}M${r1(c.x + 2)} ${r1(c.y + c.h - 4)}h${r1(c.w - 4)}" class="tick"/>`;
-    svg += `<path d="M${x + w - 9} ${y + 8}V${y + h - 12}" class="rod"/><circle cx="${x + w - 9}" cy="${y + h - 9}" r="3" class="pivot"/>`;
-    return { w, h, body: { x, y, w, h }, svg, cells, digits: true };
+    const lever = `<path d="M${x + w - 9} ${y + 8}V${y + h - 12}" class="rod"/>`;
+    svg += `<circle cx="${x + w - 9}" cy="${y + h - 9}" r="3" class="pivot"/>`;
+    return { w, h, body: { x, y, w, h }, svg, cells, digits: true, work: [{ type: "wiggle", svg: lever, cx: x + w - 9, cy: y + h - 9 }] };
   },
   arena(m, x, y) {
     const unit = m.unit ?? 10, cap = m.capacity ?? 16, sizes = m.sizes ?? m.cells.map(() => 2), pad = 6, ch = 22;
@@ -398,18 +399,20 @@ const MACHINES = {
     let svg = rect(x, y, w, h, "body", 4);
     const inX = x + pad + 4, outX = x + w - pad - 4;
     svg += `<path d="M${inX} ${y + pad + rowH / 2}V${y + h - pad - rowH / 2}M${outX} ${y + pad + rowH / 2}V${y + h - pad - rowH / 2}" class="rail"/>`;
-    const cells = [];
+    const cells = [], work = [];
     for (let i = 0; i < n; i++) {
       const cy = y + pad + i * rowH + rowH / 2, gx = x + pad + 24;
       svg += `<path d="M${inX} ${cy}H${gx - 9}M${x + pad + 36 + cw} ${cy}H${outX}" class="seam"/>`;
-      svg += `<circle cx="${gx}" cy="${cy}" r="7" class="gear"/><circle cx="${gx}" cy="${cy}" r="2.4" class="pivot"/>`;
+      let gear = `<circle cx="${gx}" cy="${cy}" r="7" class="gear"/>`;
       for (let t = 0; t < 6; t++) {
         const a = (t * Math.PI) / 3;
-        svg += `<path d="M${r1(gx + Math.cos(a) * 7)} ${r1(cy + Math.sin(a) * 7)}L${r1(gx + Math.cos(a) * 9.5)} ${r1(cy + Math.sin(a) * 9.5)}" class="tooth"/>`;
+        gear += `<path d="M${r1(gx + Math.cos(a) * 7)} ${r1(cy + Math.sin(a) * 7)}L${r1(gx + Math.cos(a) * 9.5)} ${r1(cy + Math.sin(a) * 9.5)}" class="tooth"/>`;
       }
+      gear += `<path d="M${gx - 4} ${cy}h8" class="tooth"/><circle cx="${gx}" cy="${cy}" r="2.4" class="pivot"/>`;
+      work.push({ type: "spin", svg: gear, cx: gx, cy });
       cells.push({ x: x + pad + 36, y: cy - 10, w: cw, h: 20 });
     }
-    return { w, h, body: { x, y, w, h }, svg, cells };
+    return { w, h, body: { x, y, w, h }, svg, cells, work };
   },
   pool(m, x, y) {
     const n = m.cells.length, cw = m.cellW ?? 30, ch = 20, pad = 8, gap = 8, w = pad * 2 + n * cw + (n - 1) * gap, h = pad + 14 + ch + pad;
@@ -421,14 +424,15 @@ const MACHINES = {
   bucket(m, x, y) {
     const n = m.cells.length, cols = m.cols ?? 3, rows = Math.ceil(n / cols), d = 13, top = 16, w = cols * d + 34, h = top + rows * d + 14;
     const bx0 = x + 6, bx1 = x + w - 6;
-    let svg = `<path d="M${x + 4} ${y + 3}H${x + 20}V${y + 10}" class="tap"/><circle cx="${x + 20}" cy="${y + 13}" r="2.2" class="drip"/>`;
+    let svg = `<path d="M${x + 4} ${y + 3}H${x + 20}V${y + 10}" class="tap"/>`;
+    const drip = `<circle cx="${x + 20}" cy="${y + 13}" r="2.2" class="drip"/>`;
     svg += `<path d="M${bx0} ${y + top}L${bx0 + 6} ${y + h}H${bx1 - 6}L${bx1} ${y + top}" class="bucket"/>`;
     const cells = [];
     for (let i = 0; i < n; i++) {
       const r = Math.floor(i / cols), c = i % cols;
       cells.push({ x: x + (w - cols * d) / 2 + c * d + 1, y: y + h - 6 - (r + 1) * d + 1, w: d - 2, h: d - 2, pixel: true, lamp: true });
     }
-    return { w, h, body: { x, y, w, h }, svg, cells };
+    return { w, h, body: { x, y, w, h }, svg, cells, work: [{ type: "drip", svg: drip }] };
   },
   timerwheel(m, x, y) {
     const n = m.cells.length, R = m.radius ?? (n > 8 ? 60 : 52), cx = x + R, cy = y + R, cw = m.cellW ?? 26;
@@ -745,6 +749,8 @@ export function factory(opts) {
       }
       n++;
       const start = t;
+      const stepItems = [];
+      const runBelts = () => {
       if (s.belt) {
         const ids = Array.isArray(s.belt) ? s.belt : [s.belt];
         const items = Array.isArray(s.item) ? s.item : ids.map(() => s.item);
@@ -762,34 +768,60 @@ export function factory(opts) {
           const item = items[k];
           if (item != null) {
             if (String(item).length > LIMITS.itemChars) fail(`step ${n}: item "${item}" is longer than ${LIMITS.itemChars} chars; show the shape, put detail in the caption`);
-            timeline.push({ type: "item", e, item, t0: t, t1: t + dur });
+            const tl = { type: "item", e, item, t0: t, t1: t + dur };
+            timeline.push(tl);
+            stepItems.push(tl);
+            const src0 = machines.get(e.from), dst0 = machines.get(e.to);
+            if (src0?.geo.work) (src0.workWin ??= []).push([Math.max(0.05, t - 0.7), t]);
+            if (dst0?.geo.work) (dst0.workWin ??= []).push([t + dur, t + dur + 0.8]);
           } else timeline.push({ type: "pulse", e, t0: t, t1: t + dur });
         });
-        if (bad) continue;
+        if (bad) return false;
         t += longest;
       }
-      let heldWrites = false;
-      if (s.arm) {
+        return true;
+      };
+      let heldWrites = false, heldPointers = false;
+      const runArm = () => {
         const A = machines.get(s.arm);
         if (!A || A.kind !== "arm") {
           fail(`step ${n}: ${s.arm} is not an arm machine`);
-          continue;
+          return false;
         }
         const valueAt = (cell) => (cell.events.length ? cell.events.at(-1).v : cell.init);
         let tt = t + 0.1;
         const nHeld = Object.values(s.writes ?? {}).reduce((a, l) => a + l.length, 0);
+        const beltOf = (ref) => (typeof ref === "string" ? belts.find((b) => b.id === (ref === "belt" ? (Array.isArray(s.belt) ? s.belt[0] : s.belt) : ref)) : null);
         (s.moves ?? []).forEach((mv, i) => {
-          const [fm, fi] = mv.from ?? [], [tm, ti] = mv.to ?? [];
-          const F0 = machines.get(fm), T0 = machines.get(tm);
-          if (!F0?.cells[fi] || !T0?.cells[ti]) {
-            fail(`step ${n}: arm move ${i + 1} needs from: [machine, cell] and to: [machine, cell] that exist`);
+          const fb = beltOf(mv.from), tb = beltOf(mv.to);
+          const fc = fb ? null : machines.get(mv.from?.[0])?.cells[mv.from?.[1]];
+          const tc = tb ? null : machines.get(mv.to?.[0])?.cells[mv.to?.[1]];
+          if ((!fb && !fc) || (!tb && !tc) || (typeof mv.from === "string" && !fb) || (typeof mv.to === "string" && !tb)) {
+            fail(`step ${n}: arm move ${i + 1} needs from and to: a belt id (or "belt") or [machine, cell] that exist`);
             return;
           }
-          const value = mv.value ?? valueAt(F0.cells[fi]);
+          if (fc && tc && mv.from[0] === mv.to[0]) {
+            fail(`step ${n}: arm ${A.id} moves a piece inside ${mv.from[0]}; arms move pieces between a belt and a slot or between two machines, so show this with writes`);
+            return;
+          }
+          const fromPt = fb ? (fb.pts ? pointAt(fb.pts, Math.max(0, fb.len - 18)) : null) : [fc.x + fc.w / 2, fc.y + fc.h / 2];
+          const toPt = tb ? (tb.pts ? pointAt(tb.pts, Math.min(18, tb.len)) : null) : [tc.x + tc.w / 2, tc.y + tc.h / 2];
+          if (!fromPt || !toPt) return;
+          const arriving = fb ? stepItems.find((tl) => tl.e === fb) : null;
+          const value = mv.value ?? (fc ? valueAt(fc) : arriving?.item ?? "");
           if (String(value).length > LIMITS.itemChars) fail(`step ${n}: arm carries "${value}", longer than ${LIMITS.itemChars} chars`);
-          const reach = tt + 0.55, grip = reach + 0.2, hold = i === 0 ? nHeld * 0.22 : 0, drop = grip + 0.75 + hold, after = drop + 0.2;
-          if (mv.clear !== false) F0.cells[fi].events.push({ t: grip, v: "" });
+          const reach = tt + 0.5, grip = reach + 0.2, hold = i === 0 ? nHeld * 0.22 : 0, drop = grip + 0.75 + hold, after = drop + 0.2;
+          if (arriving) arriving.hold = grip;
+          if (fc && mv.clear !== false) fc.events.push({ t: grip, v: "" });
           if (i === 0) {
+            for (const [mid, moves2] of Object.entries(s.pointers ?? {})) {
+              const pm = machines.get(mid);
+              for (const [name, idx] of Object.entries(moves2)) {
+                if (!pm?.pointers[name]) fail(`step ${n}: ${mid} has no pointer ${name}`);
+                else pm.pointers[name].events.push({ t: grip, i: idx });
+              }
+            }
+            heldPointers = true;
             let k = 0;
             for (const [mid, list] of Object.entries(s.writes ?? {})) {
               const m = machines.get(mid);
@@ -801,19 +833,28 @@ export function factory(opts) {
             }
             heldWrites = true;
           }
-          T0.cells[ti].events.push({ t: drop, v: value });
+          if (tc) tc.events.push({ t: drop, v: value });
           A.armMoves = A.armMoves ?? [];
-          A.armMoves.push({ from: F0.cells[fi], to: T0.cells[ti], value, t0: tt, reach, grip, drop, after });
+          A.armMoves.push({ fromPt, toPt, value, t0: tt, reach, grip, drop, after });
           tt = after;
         });
         A.hot.push([start, tt + 0.5]);
         A.armRests = A.armRests ?? [];
         A.armRests.push(tt + 0.55);
         t = tt + 0.6;
+        return true;
+      };
+      const armFirst = s.arm && (s.moves ?? []).some((mv) => typeof mv.to === "string");
+      if (armFirst) {
+        if (!runArm()) continue;
+        if (s.belt && !runBelts()) continue;
+      } else {
+        if (s.belt && !runBelts()) continue;
+        if (s.arm && !runArm()) continue;
       }
       const writes = heldWrites ? [] : Object.entries(s.writes ?? {});
       const nWrites = writes.reduce((a, [, list]) => a + list.length, 0);
-      const pointerMoves = Object.entries(s.pointers ?? {});
+      const pointerMoves = heldPointers ? [] : Object.entries(s.pointers ?? {});
       const work = s.at || nWrites || pointerMoves.length ? Math.max(0.8, 0.22 * nWrites + 0.4) : 0;
       let k = 0;
       for (const [mid, list] of writes) {
@@ -905,13 +946,23 @@ export function factory(opts) {
       const { cx: bx, cy: by } = A.geo.armBase;
       const mvs = A.armMoves ?? [];
       const center = (c) => [c.x + c.w / 2, c.y + c.h / 2];
-      const pts = mvs.flatMap((mv) => [center(mv.from), center(mv.to)]);
+      const pts = mvs.flatMap((mv) => [mv.fromPt, mv.toPt]);
       const far = Math.max(60, ...pts.map(([px, py]) => Math.hypot(px - bx, py - by)));
       const L1 = Math.ceil(A.reach ? A.reach / 2 : far * 0.56), L2 = L1;
       const cap = A.maxReach ?? G * 9;
       if (!A.reach && L1 + L2 > cap) fail(`arm ${A.id} would need a ${L1 + L2}px reach to get to its cells (limit ${cap}px); place it closer to the structures it moves`);
       const meanA = pts.length ? Math.atan2(pts.reduce((a, p) => a + p[1], 0) / pts.length - by, pts.reduce((a, p) => a + p[0], 0) / pts.length - bx) * 180 / Math.PI : -90;
-      const rest = [meanA + 180 - 40, 115];
+      const others = [...machines.values()].filter((o) => o.id !== A.id).map((o) => ({ x: o.geo.body.x - 8, y: o.geo.body.y - 8, w: o.geo.body.w + 16, h: o.geo.h + 30 }));
+      const poseClear = ([a0, a1]) => {
+        const e0 = [bx + Math.cos((a0 * Math.PI) / 180) * L1, by + Math.sin((a0 * Math.PI) / 180) * L1];
+        const t0 = [e0[0] + Math.cos(((a0 + a1) * Math.PI) / 180) * L2, e0[1] + Math.sin(((a0 + a1) * Math.PI) / 180) * L2];
+        const samples = [];
+        for (const [p, q] of [[[bx, by], e0], [e0, t0]]) for (let k = 1; k <= 8; k++) samples.push([p[0] + ((q[0] - p[0]) * k) / 8, p[1] + ((q[1] - p[1]) * k) / 8]);
+        return samples.every(([px, py]) => px > 4 && px < W - 4 && py > HEAD + 4 && py < HEAD + floorH - 4 && !others.some((o) => px > o.x && px < o.x + o.w && py > o.y && py < o.y + o.h));
+      };
+      const candidates = [];
+      for (const d of [-40, 40, -70, 70, 0, -110, 110, -150, 150, 180]) for (const f of [115, -115, 140, -140]) candidates.push([meanA + 180 + d, f]);
+      const rest = candidates.find(poseClear) ?? [meanA + 180 - 40, 115];
       const restElbow = [bx + Math.cos((rest[0] * Math.PI) / 180) * L1, by + Math.sin((rest[0] * Math.PI) / 180) * L1];
       const restTip = [restElbow[0] + Math.cos(((rest[0] + rest[1]) * Math.PI) / 180) * L2, restElbow[1] + Math.sin(((rest[0] + rest[1]) * Math.PI) / 180) * L2];
       A.armGeo = { L1, L2, rest, restElbow, restTip };
@@ -931,6 +982,35 @@ export function factory(opts) {
       for (const d of g.ends ?? []) {
         inner += text(d.x, d.y, d.s, "end-t", "middle");
         addText({ x: d.x - textW(d.s, 8) / 2, y: d.y - 8, w: textW(d.s, 8), h: 9 }, `${m.id}.end`, `${m.id} ${d.s} label`);
+      }
+      const wins = [...m.hot, ...(m.workWin ?? [])].sort((a, b) => a[0] - b[0]).reduce((acc, w0) => {
+        const last = acc.at(-1);
+        if (last && w0[0] <= last[1] + 0.05) last[1] = Math.max(last[1], w0[1]);
+        else acc.push([...w0]);
+        return acc;
+      }, []);
+      for (const part of g.work ?? []) {
+        const f = [];
+        if (part.type === "spin") {
+          let turned = 0;
+          f.push([0, "transform:rotate(0deg)"]);
+          for (const [a, b] of wins) {
+            const revs = Math.max(1, Math.round((b - a) / 0.9));
+            f.push([a, `transform:rotate(${turned}deg)`]);
+            turned += 360 * revs;
+            f.push([b, `transform:rotate(${turned}deg)`]);
+          }
+        } else {
+          const period = part.type === "drip" ? 0.6 : 0.42;
+          f.push([0, part.type === "drip" ? "transform:translate(0px,0px);opacity:1" : part.type === "wiggle" ? "transform:rotate(0deg)" : "transform:translate(0px,0px)"]);
+          for (const [a, b] of wins) for (let c = a; c < Math.max(b - period * 0.5, a + 0.01); c += period) {
+            if (part.type === "stamp") f.push([c, "transform:translate(0px,0px)"], [c + period * 0.45, `transform:translate(0px,${part.dy}px)`], [c + period, "transform:translate(0px,0px)"]);
+            else if (part.type === "wiggle") f.push([c, "transform:rotate(0deg)"], [c + period * 0.35, "transform:rotate(28deg)"], [c + period, "transform:rotate(0deg)"]);
+            else f.push([c, "transform:translate(0px,0px);opacity:1"], [c + 0.4, "transform:translate(0px,9px);opacity:0"], [c + 0.41, "transform:translate(0px,0px);opacity:0"], [c + period, "transform:translate(0px,0px);opacity:1"]);
+          }
+        }
+        const origin = part.cx != null ? ` style="transform-origin:${part.cx}px ${part.cy}px"` : "";
+        inner += wins.length && f.length > 1 ? `<g class="rot"${origin}${animAttr(f)}>${part.svg}</g>` : part.svg;
       }
       svgMachines += `<g class="m m-${m.kind}" data-machine="${esc(m.id)}" data-box="${r1(g.body.x)} ${r1(g.body.y)} ${r1(g.body.w)} ${r1(g.h)}"${m.src ? ` data-src="${esc(m.src)}"` : ""}${m.symbol ? ` data-symbol="${esc(m.symbol)}"` : ""}>${href ? `<a href="${esc(href)}">` : ""}${inner}${href ? "</a>" : ""}</g>`;
       const busy = { s: 0, n: 0, e: 0, w: 0 };
@@ -1153,7 +1233,8 @@ export function factory(opts) {
         addText(lb, e.id, `label of ${e.id}`);
       }
       if (e.kind === "belt") {
-        svgBelts += `<path d="${pathD(e.pts)}" class="belt" data-edge="${esc(e.id)}" data-from="${esc(e.from)}" data-to="${esc(e.to)}"/>`;
+        const travel = Math.max(12, Math.round((T * 34) / 12) * 12);
+        svgBelts += `<path d="${pathD(e.pts)}" class="belt-rail"/><path d="${pathD(e.pts)}" class="belt" data-edge="${esc(e.id)}" data-from="${esc(e.from)}" data-to="${esc(e.to)}"/><path d="${pathD(e.pts)}" class="belt-roll"${animAttr([[0, "stroke-dashoffset:0px"], [T, `stroke-dashoffset:-${travel}px`]])}/>`;
         for (let d = 22; d < e.len - 14; d += 44) {
           const p = pointAt(e.pts, d), q = pointAt(e.pts, d + 1);
           const ang = Math.atan2(q[1] - p[1], q[0] - p[0]) * (180 / Math.PI);
@@ -1186,7 +1267,8 @@ export function factory(opts) {
           frames.push([tl.t0 + (acc / tl.e.len) * dur, `transform:translate(${r1(p[0])}px,${r1(p[1])}px)`]);
         });
         frames.splice(1, 0, [0, `transform:translate(${r1(tl.e.pts[0][0])}px,${r1(tl.e.pts[0][1])}px)`]);
-        frames.push([tl.t1, "opacity:1"], [tl.t1 + FADE, "opacity:0"]);
+        const gone = tl.hold ?? tl.t1;
+        frames.push([gone, "opacity:1"], [gone + FADE, "opacity:0"]);
         svgItems += `<g class="item" opacity="0"${animAttr(frames)}>${rect(-w / 2, -9, w, 18, "item-b", 9)}${text(0, 0, tl.item, "item-t", "middle", ` dominant-baseline="central"`)}</g>`;
       } else if (tl.type === "pulse") {
         svgItems += `<path d="${pathD(tl.e.pts)}" class="pulse" opacity="0"${animAttr(windows([[tl.t0, tl.t1]]))}/>`;
@@ -1265,8 +1347,8 @@ export function factory(opts) {
       let cur = rest;
       const rests = new Set(A.armRests ?? []);
       for (const mv of mvs) {
-        const src = ik(center(mv.from), cur);
-        const dst = ik(center(mv.to), src);
+        const src = ik(mv.fromPt, cur);
+        const dst = ik(mv.toPt, src);
         pose(mv.t0, cur);
         pose(mv.reach, src);
         pose(mv.grip, src);
@@ -1285,12 +1367,12 @@ export function factory(opts) {
         const w = textW(mv.value) + 12;
         tokens += `<g opacity="0"${animAttr([[0, "opacity:0"], [mv.grip, "opacity:0"], [mv.grip + 0.08, "opacity:1"], [mv.drop, "opacity:1"], [mv.drop + 0.08, "opacity:0"]])}>${rect(tx - w / 2, by + 6, w, 16, "item-b", 8)}${text(tx, by + 14, mv.value, "item-t", "middle", ` dominant-baseline="central"`)}</g>`;
       }
-      svgArms += `<g class="rot" style="transform-origin:${bx}px ${by}px" transform="rotate(${r1(rest[0])} ${bx} ${by})"${g1}>` +
+      svgArms += `<g class="rot" style="transform-origin:${bx}px ${by}px;transform:rotate(${r1(rest[0])}deg)"${g1}>` +
         `<path d="M${bx} ${by}H${ex}" class="arm-seg"/><path d="M${bx} ${by}H${ex}" class="arm-core"/>` +
-        `<g class="rot" style="transform-origin:${ex}px ${by}px" transform="rotate(${rest[1]} ${ex} ${by})"${g2}>` +
+        `<g class="rot" style="transform-origin:${ex}px ${by}px;transform:rotate(${r1(rest[1])}deg)"${g2}>` +
         `<path d="M${ex} ${by}H${tx}" class="arm-seg"/><path d="M${ex} ${by}H${tx}" class="arm-core"/>` +
         `<path d="M${tx - 2} ${by - 7}V${by + 7}M${tx - 2} ${by - 7}h8M${tx - 2} ${by + 7}h8" class="grip"/>` +
-        `<g class="tip" transform="rotate(${r1(-(rest[0] + rest[1]))} ${tx} ${by + 14})"${g3}>${tokens}</g>` +
+        `<g class="tip" style="transform:rotate(${r1(-(rest[0] + rest[1]))}deg)"${g3}>${tokens}</g>` +
         `<circle cx="${ex}" cy="${by}" r="5" class="arm-joint"/></g>` +
         `<circle cx="${bx}" cy="${by}" r="6.5" class="arm-joint"/><circle cx="${bx}" cy="${by}" r="2.6" class="arm-pin"/></g>`;
     }
@@ -1389,7 +1471,7 @@ export function factory(opts) {
 .val{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px}
 .lbl{font-size:11px;font-weight:600;fill:var(--mid);letter-spacing:.02em}
 .cond{font-size:10px;font-style:italic;fill:var(--mid)}.sig-t{font-size:10px;fill:var(--mid)}
-.belt{fill:none;stroke:var(--belt);stroke-width:9;stroke-linejoin:round}.chev{fill:none;stroke:var(--lo);stroke-width:1.4}
+.belt-rail{fill:none;stroke:var(--lo);stroke-width:12;stroke-linejoin:round}.belt{fill:none;stroke:var(--belt);stroke-width:9;stroke-linejoin:round}.belt-roll{fill:none;stroke:var(--lo);stroke-width:7;stroke-dasharray:1.6 10.4;opacity:.75}.chev{fill:none;stroke:var(--lo);stroke-width:1.4}
 .mouth{fill:var(--slot)}.nodebox{fill:none;stroke:var(--ink);stroke-width:1.2}.tape{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.hole{fill:var(--paper);stroke:var(--lo);stroke-width:.6}
 .rail{stroke:var(--mid);stroke-width:2.2;stroke-linecap:round}.gear{fill:var(--body);stroke:var(--ink);stroke-width:1.4}.tooth{stroke:var(--ink);stroke-width:2}.hook{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round}
 .tap{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round}.drip{fill:var(--accent)}.bucket{fill:var(--body);stroke:var(--ink);stroke-width:1.4;stroke-linejoin:round}

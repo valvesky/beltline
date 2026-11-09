@@ -91,11 +91,17 @@ F.step({
   caption: "one line, ≤ 96 chars",
   src: "path:line",
 });
-F.step({                         // an arm moves one piece
-  arm: "mover",
-  moves: [{ from: ["lru", 5], to: ["lru", 3] }],   // [machine, cell]; value defaults to what the source cell holds
-  writes: { lru: [[5, "b"], [4, "c"], [3, ""]] },  // applied while the piece is held, so others can shift under it
-  caption: "the arm lifts a off the LRU end; the others slide down; a goes to MRU",
+F.step({                         // an arm takes the arriving item off the belt and sets it in a slot
+  belt: "stack->map", item: "k3:10",
+  arm: "loader",
+  moves: [{ from: "belt", to: ["map", 2] }],       // "belt" = this step's belt; or a belt id; or [machine, cell]
+  pointers: { map: { h: 2 } },                     // pointer moves and writes in an arm step land while the piece is held
+  caption: "h(k3) = 2: the arm drops k3 into bucket 2",
+});
+F.step({                         // or lifts a piece out of a store onto an outgoing belt, which then carries it
+  arm: "evictor", moves: [{ from: ["lru", 5], to: "lru->tower" }],
+  belt: "lru->tower", item: "b",
+  writes: { lru: [[1, ""]] },
 });
 F.step({ belt: ["fan->a", "fan->b"], item: ["x", "y"] });   // several belts at once (broadcast, concurrency)
 F.trace("reject");               // following captions get the prefix "reject ·"
@@ -128,6 +134,7 @@ F.trace("reject");               // following captions get the prefix "reject ·
 | `needs src` | Add `path:line`, or `external: true` for a boundary with no first-party source. |
 | `over the clutter budget` | Cut cells, merge machines, drop the side lanes into a second tour. Do not raise `maxTexts` to get past it. Only text visible in the static end state counts; moving items and earlier captions and values do not. |
 | `caption line … with its prefix` | The `n/N` and `trace ·` prefixes count toward the limit. Shorten the caption or the trace name. |
+| `arm … moves a piece inside …` | Arms only move between a belt and a slot, or between two machines. Show moves inside a structure with writes. |
 | `arm … would need a …px reach` | Put the arm's pedestal next to the structure it moves. |
 | `arm … rests across text` / `rests over machine` | Move the pedestal; the arm folds away from its targets at rest. |
 | `gap … is longer` | Split it into two `F.gap()` lines. |

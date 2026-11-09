@@ -24,8 +24,8 @@ F.machine("lru", { kind: "lru", at: [1, 10], label: "LRU cache", src, buckets: 3
   .machine("list", { kind: "chain", at: [26, 11], label: "doubly linked list", labelSide: "n", src, doubly: true, cells: ["n1", "n2", "n3"] })
   .machine("rec", { kind: "record", at: [36, 10], label: "struct · registers", src, cells: ["head 11", "tail 7", "dirty yes"] });
 
-F.machine("sorter", { kind: "arm", at: [4, 6], label: "arm", src })
-  .machine("mover", { kind: "arm", at: [7, 15], label: "arm", src });
+F.machine("loader", { kind: "arm", at: [28, 6], label: "arm", src })
+  .machine("evictor", { kind: "arm", at: [11, 15], label: "arm", src });
 
 F.machine("sel", { kind: "selector", at: [1, 20], label: "state machine", src, states: ["idle", "esc", "csi", "osc"], cells: ["mode esc", "params 0"], cellW: 70, pointers: { state: 1 } })
   .machine("cut", { kind: "cutter", at: [11, 20], label: "tokenizer · parser", src, cells: ["pos 3"], cellW: 50 })
@@ -41,15 +41,15 @@ F.belt("sel", "cut").belt("cut", "split")
   .belt("split", "lock", { out: "s", in: "w", label: "else" })
   .belt("press", "plate");
 
-F.step({ belt: "rack->drum", item: "9", caption: "an inserter lifts the item off the rack and onto the belt" })
+F.step({ belt: "rack->drum", item: "9", caption: "a value leaves the rack on its belt" })
   .step({ at: "drum", writes: { drum: [[2, "c"]] }, pointers: { drum: { tail: 3 } }, caption: "ring buffer: c lands in the tail sector and the tail arm turns" })
-  .step({ belt: "stack->map", item: "k3", pointers: { map: { h: 2 } }, writes: { map: [[2, "k3:10"]] }, caption: "hash map: h(k3) = 2, so the pointer drops to bucket 2" })
-  .step({ arm: "sorter", moves: [{ from: ["rack", 1], to: ["rack", 0] }], writes: { rack: [[1, "7"], [0, ""]] }, caption: "insertion sort: the arm lifts 3, 7 shifts right, and 3 goes in front" })
+  .step({ belt: "stack->map", item: "k3:10", arm: "loader", moves: [{ from: "belt", to: ["map", 2] }], pointers: { map: { h: 2 } }, caption: "hash map: h(k3) = 2, so the arm takes k3 off the belt and drops it in bucket 2" })
   .step({ at: "lru", pointers: { lru: { h: 0 } }, caption: "LRU: get(a) hashes to bucket 0 and finds node 2" })
-  .step({ arm: "mover", moves: [{ from: ["lru", 5], to: ["lru", 3] }], writes: { lru: [[5, "b"], [4, "c"], [3, ""]] }, caption: "the arm lifts a off the LRU end, the others slide down, a goes to MRU" })
+  .step({ at: "lru", writes: { lru: [[3, "a"], [4, "c"], [5, "b"]] }, caption: "a hit relinks a to the MRU end; nothing is copied" })
+  .step({ arm: "evictor", moves: [{ from: ["lru", 5], to: "lru->tower" }], writes: { lru: [[1, ""]] }, belt: "lru->tower", item: "b", caption: "the cache is full: the arm lifts the LRU entry b out onto the belt" })
   .step({ belt: "cut->split", item: "42", caption: "the tokenizer cuts a number and hands it to the branch" })
   .step({ belt: "split->press", item: "num 42", caption: "branch: kind == num, so the flap swings to the upper route" })
-  .step({ belt: "press->plate", item: "glyph", writes: { plate: [[[11, 12], "a"]] }, caption: "the press renders a glyph and an inserter drops it on the plate" })
+  .step({ belt: "press->plate", item: "glyph", writes: { plate: [[[11, 12], "a"]] }, caption: "the press renders a glyph and the plate is painted" })
   .step({ belt: "cut->split", item: "+", caption: "the next token is an operator" })
   .step({ belt: "split->lock", item: "op +", pointers: { lock: { gate: 1 } }, caption: "branch: else, so the flap swings down and the lock's gate turns" })
 

@@ -165,26 +165,36 @@ test("hash map pointers frame the bucket index and the LRU shows both ends", () 
 });
 
 const armTour = () =>
-  factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 12 })
-    .machine("r", { kind: "rack", at: [2, 2], label: "r[]", src: "a.js:1", cells: ["7", "3", "9"] })
-    .machine("o", { kind: "dock", at: [16, 2], label: "out", external: true })
-    .machine("bot", { kind: "arm", at: [4, 6], label: "arm", src: "a.js:2" })
-    .belt("r", "o");
+  factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 34, rows: 12 })
+    .machine("src", { kind: "dock", at: [1, 2], label: "in", external: true })
+    .machine("r", { kind: "rack", at: [10, 2], label: "r[]", src: "a.js:1", cells: ["7", "", "9"] })
+    .machine("o", { kind: "dock", at: [24, 2], label: "out", external: true })
+    .machine("bot", { kind: "arm", at: [7, 6], label: "arm", src: "a.js:2" })
+    .belt("src", "r").belt("r", "o");
 
-test("an arm lifts a piece, holds it while others shift, and sets it down", () => {
-  const out = quiet(armTour().step({ arm: "bot", moves: [{ from: ["r", 1], to: ["r", 0] }], writes: { r: [[1, "7"], [0, ""]] }, caption: "sort" }));
+test("an arm takes an item off a belt and sets it into the exact slot", () => {
+  const out = quiet(armTour().step({ belt: "src->r", item: "3", arm: "bot", moves: [{ from: "belt", to: ["r", 1] }], caption: "place" }));
   assert.deepEqual(out.problems, []);
   assert.equal((out.svg.match(/class="arm-seg"/g) ?? []).length, 2);
-  const cells = [...out.svg.matchAll(/class="val[^"]*" text-anchor="middle" dominant-baseline="central"(?: id="[^"]+")?>([^<]*)</g)].map((m) => m[1]);
-  assert.ok(cells.includes("3") && cells.includes("7"));
-  assert.match(out.svg, /class="item-b"[^>]*\/><text[^>]*class="item-t"[^>]*>3</);
-  const end = out.svg.match(/<text x="([\d.]+)" y="[\d.]+" class="val val-w" text-anchor="middle" dominant-baseline="central"( id="[^"]+")?>3<\/text>/);
-  assert.ok(end, "3 is not written at the target");
+  assert.match(out.svg, /class="val val-w" text-anchor="middle" dominant-baseline="central"( id="[^"]+")?>3<\/text>/);
+  const item = out.svg.match(/<g class="item" opacity="0" id="(bl-a\d+)">/);
+  const kf = out.svg.match(new RegExp(`#${item[1]}\\{animation-name:(k\\d+)\\}`))[1];
+  const body = out.svg.match(new RegExp(`@keyframes ${kf}\\{([^\\n]+)\\}`))[1];
+  const lastMove = Math.max(...[...body.matchAll(/([\d.]+)%\{[^}]*transform/g)].map((m) => +m[1]));
+  const fade = Math.max(...[...body.matchAll(/([\d.]+)%\{[^}]*opacity:0/g)].map((m) => +m[1]));
+  assert.ok(fade > lastMove + 1, "the item should wait at the belt end for the gripper");
+});
+
+test("an arm lifts a piece out of a slot onto an outgoing belt", () => {
+  const out = quiet(armTour().machine("bot2", { kind: "arm", at: [19, 6], label: "arm2", src: "a.js:3" }).step({ arm: "bot2", moves: [{ from: ["r", 2], to: "r->o" }], belt: "r->o", item: "9" }).step({ belt: "src->r", item: "x", arm: "bot", moves: [{ from: "belt", to: ["r", 1] }] }));
+  assert.deepEqual(out.problems, []);
+  const order = out.svg.indexOf("arm-seg");
+  assert.ok(order > 0);
 });
 
 test("the resting arm is the static end state", () => {
-  const out = quiet(armTour().step({ arm: "bot", moves: [{ from: ["r", 1], to: ["r", 0] }] }));
-  const g = out.svg.match(/<g class="rot" style="transform-origin:([\d.]+)px ([\d.]+)px" transform="rotate\(([-\d.]+) [\d.]+ [\d.]+\)" id="(bl-a\d+)">/);
+  const out = quiet(armTour().step({ belt: "src->r", item: "3", arm: "bot", moves: [{ from: "belt", to: ["r", 1] }] }));
+  const g = out.svg.match(/<g class="rot" style="transform-origin:([\d.]+)px ([\d.]+)px;transform:rotate\(([-\d.]+)deg\)" id="(bl-a\d+)">/);
   assert.ok(g, "no animated arm root");
   const kf = out.svg.match(new RegExp(`#${g[4]}\\{animation-name:(k\\d+)\\}`))[1];
   const body = out.svg.match(new RegExp(`@keyframes ${kf}\\{([^\\n]+)\\}`))[1];
@@ -193,11 +203,12 @@ test("the resting arm is the static end state", () => {
 });
 
 const armFaults = [
-  ["arm placed too far from its cells", (F) => F.machine("far", { kind: "rack", at: [22, 9], label: "far", src: "a.js:3", cells: ["x"] }).belt("far", "o").step({ arm: "bot", moves: [{ from: ["r", 0], to: ["far", 0] }] }), /reach to get to its cells/],
-  ["arm with a reach too short", (F) => { F.machine("bot2", { kind: "arm", at: [12, 7], label: "arm2", src: "a.js:4", reach: 40 }); return F.step({ arm: "bot2", moves: [{ from: ["r", 0], to: ["r", 2] }] }).step({ arm: "bot", moves: [{ from: ["r", 1], to: ["r", 0] }] }); }, /cannot reach/],
+  ["arm placed too far from its work", (F) => F.machine("bot3", { kind: "arm", at: [30, 10], label: "arm3", src: "a.js:4" }).step({ belt: "src->r", item: "1", arm: "bot3", moves: [{ from: "belt", to: ["r", 0] }] }).step({ belt: "src->r", item: "2", arm: "bot", moves: [{ from: "belt", to: ["r", 1] }] }), /reach to get to its cells/],
+  ["arm with a reach too short", (F) => F.machine("bot2", { kind: "arm", at: [12, 7], label: "arm2", src: "a.js:4", reach: 40 }).step({ belt: "src->r", item: "1", arm: "bot2", moves: [{ from: "belt", to: ["r", 2] }] }).step({ belt: "src->r", item: "2", arm: "bot", moves: [{ from: "belt", to: ["r", 1] }] }), /cannot reach/],
   ["arm with no moves", (F) => F.step({ belt: "r->o", item: "1" }), /never moves anything/],
-  ["move to a missing cell", (F) => F.step({ arm: "bot", moves: [{ from: ["r", 0], to: ["r", 9] }] }), /needs from/],
-  ["arm step on a non-arm", (F) => F.step({ arm: "r", moves: [{ from: ["r", 0], to: ["r", 1] }] }), /not an arm/],
+  ["move to a missing cell", (F) => F.step({ belt: "src->r", item: "1", arm: "bot", moves: [{ from: "belt", to: ["r", 9] }] }), /needs from and to/],
+  ["arm step on a non-arm", (F) => F.step({ arm: "r", moves: [{ from: "belt", to: ["r", 1] }] }), /not an arm/],
+  ["arm shuffling pieces inside one structure", (F) => F.step({ arm: "bot", moves: [{ from: ["r", 0], to: ["r", 1] }] }), /inside r; arms move pieces between a belt and a slot/],
 ];
 for (const [name, plant, expect] of armFaults) {
   test(`planted fault fails the audit: ${name}`, () => {
@@ -319,4 +330,9 @@ test("pointers that come to rest on the same slot stack their names instead of o
   const ys = [...out.svg.matchAll(/<text x="[\d.]+" y="([\d.]+)" class="ptr-t"[^>]*>(lsn|commit)</g)].map((m) => +m[1]);
   assert.equal(ys.length, 2);
   assert.notEqual(ys[0], ys[1]);
+});
+
+test("resting rotations are inline CSS, never a transform attribute that transform-origin would offset twice", () => {
+  const out = quiet(armTour().step({ belt: "src->r", item: "3", arm: "bot", moves: [{ from: "belt", to: ["r", 1] }] }));
+  assert.doesNotMatch(out.svg, /transform="rotate\(/);
 });
