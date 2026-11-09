@@ -10,7 +10,8 @@
 - Evals with a three-axis rubric (correctness, visual design, visual clarity) and two fixture repos.
 
 ### Changed (catalogue, from owner review)
-- Belts enter machines through visible slots, and stores are loaded and unloaded by inserter arms that swing when an item arrives or leaves.
+- Belts enter machines through visible slots.
+- New `arm`: a long double-jointed arm on a pedestal, solved with two-link inverse kinematics, that lifts a piece out of a cell, holds it while other cells shift, and sets it down. For moves that are the point of the code, such as LRU move-to-front and sorting.
 - The branch is a real diverter: one inlet, an outlet per route, and a flap that swings to the route each item takes.
 - New `hashmap` (numbered bucket rack, `h` frame, collision chains) replaces the cubby wall; `pigeonholes` stays as an alias.
 - New `lru`: a hash index next to a doubly linked MRU ⇄ LRU list with an eviction chute, matching the common implementation. `chain` gains `doubly`.

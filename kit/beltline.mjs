@@ -235,6 +235,11 @@ const MACHINES = {
     const svg = rect(x, y, w, h, "body", 4) + rect(x + 4, y + 4, w - 8, h - 8, "well", 3);
     return { w, h, body: { x, y, w, h }, svg, cells: [], flap: { cx: x + w / 2, cy: y + h / 2 } };
   },
+  arm(m, x, y) {
+    const w = 36, h = 36, cx = x + w / 2, cy = y + h / 2;
+    const svg = rect(x, y, w, h, "pedestal", 5) + `<circle cx="${cx}" cy="${cy}" r="12" class="pedestal-ring"/>`;
+    return { w, h, body: { x, y, w, h }, svg, cells: [], armBase: { cx, cy } };
+  },
   dock(m, x, y) {
     const n = m.cells.length, cw = m.cellW ?? 46;
     const w = m.w ?? Math.max(58, cw + 16), h = m.h ?? 58;
@@ -246,7 +251,6 @@ const MACHINES = {
 
 MACHINES.pigeonholes = MACHINES.hashmap;
 export const KINDS = Object.keys(MACHINES);
-const STORES = new Set(["rack", "drum", "hopper", "stack", "pigeonholes", "hashmap", "lru", "tower", "chain", "record", "plate"]);
 
 export function factory(opts) {
   const G = opts.grid ?? 24;
@@ -383,10 +387,7 @@ export function factory(opts) {
     for (const e of edges) {
       if (!e.p0 || !e.p1) continue;
       const d0 = DIRS[e.outSide], d1 = DIRS[e.inSide];
-      const useArms = opts.inserters !== false && e.kind === "belt" && e.arm !== false;
-      e.armOut = useArms && STORES.has(machines.get(e.from).kind);
-      e.armIn = useArms && STORES.has(machines.get(e.to).kind);
-      const k0 = e.armOut ? 1 : 0.5, k1 = e.armIn ? 1 : 0.5;
+      const k0 = 0.5, k1 = 0.5;
       const s0 = [e.p0[0] + d0[0] * G * k0, e.p0[1] + d0[1] * G * k0];
       const s1 = [e.p1[0] + d1[0] * G * k1, e.p1[1] + d1[1] * G * k1];
       const via = (e.via ?? []).map(([c, r]) => at(c, r));
@@ -492,7 +493,50 @@ export function factory(opts) {
         } else timeline.push({ type: "pulse", e, t0: t, t1: t + dur });
         t += dur;
       }
-      const writes = Object.entries(s.writes ?? {});
+      let heldWrites = false;
+      if (s.arm) {
+        const A = machines.get(s.arm);
+        if (!A || A.kind !== "arm") {
+          fail(`step ${n}: ${s.arm} is not an arm machine`);
+          continue;
+        }
+        const valueAt = (cell) => (cell.events.length ? cell.events.at(-1).v : cell.init);
+        let tt = t + 0.1;
+        const nHeld = Object.values(s.writes ?? {}).reduce((a, l) => a + l.length, 0);
+        (s.moves ?? []).forEach((mv, i) => {
+          const [fm, fi] = mv.from ?? [], [tm, ti] = mv.to ?? [];
+          const F0 = machines.get(fm), T0 = machines.get(tm);
+          if (!F0?.cells[fi] || !T0?.cells[ti]) {
+            fail(`step ${n}: arm move ${i + 1} needs from: [machine, cell] and to: [machine, cell] that exist`);
+            return;
+          }
+          const value = mv.value ?? valueAt(F0.cells[fi]);
+          if (String(value).length > LIMITS.itemChars) fail(`step ${n}: arm carries "${value}", longer than ${LIMITS.itemChars} chars`);
+          const reach = tt + 0.55, grip = reach + 0.2, hold = i === 0 ? nHeld * 0.22 : 0, drop = grip + 0.75 + hold, after = drop + 0.2;
+          if (mv.clear !== false) F0.cells[fi].events.push({ t: grip, v: "" });
+          if (i === 0) {
+            let k = 0;
+            for (const [mid, list] of Object.entries(s.writes ?? {})) {
+              const m = machines.get(mid);
+              for (const [ci, v] of list) {
+                if (!m?.cells[ci]) fail(`step ${n}: ${mid} has no cell ${ci}`);
+                else m.cells[ci].events.push({ t: grip + 0.3 + k * 0.22, v });
+                k++;
+              }
+            }
+            heldWrites = true;
+          }
+          T0.cells[ti].events.push({ t: drop, v: value });
+          A.armMoves = A.armMoves ?? [];
+          A.armMoves.push({ from: F0.cells[fi], to: T0.cells[ti], value, t0: tt, reach, grip, drop, after });
+          tt = after;
+        });
+        A.hot.push([start, tt + 0.5]);
+        A.armRests = A.armRests ?? [];
+        A.armRests.push(tt + 0.55);
+        t = tt + 0.6;
+      }
+      const writes = heldWrites ? [] : Object.entries(s.writes ?? {});
       const nWrites = writes.reduce((a, [, list]) => a + list.length, 0);
       const pointerMoves = Object.entries(s.pointers ?? {});
       const work = s.at || nWrites || pointerMoves.length ? Math.max(0.8, 0.22 * nWrites + 0.4) : 0;
@@ -580,6 +624,25 @@ export function factory(opts) {
     const addText = (box, owner, what) => texts.push({ ...box, owner, what });
     let svgUnder = "", svgPorts = "", svgArms = "", svgMachines = "", svgCells = "", svgBelts = "", svgSignals = "", svgLabels = "", svgItems = "", svgHot = "";
 
+    for (const A of machines.values()) {
+      if (A.kind !== "arm") continue;
+      const { cx: bx, cy: by } = A.geo.armBase;
+      const mvs = A.armMoves ?? [];
+      const center = (c) => [c.x + c.w / 2, c.y + c.h / 2];
+      const pts = mvs.flatMap((mv) => [center(mv.from), center(mv.to)]);
+      const far = Math.max(60, ...pts.map(([px, py]) => Math.hypot(px - bx, py - by)));
+      const L1 = Math.ceil(A.reach ? A.reach / 2 : far * 0.56), L2 = L1;
+      const cap = A.maxReach ?? G * 9;
+      if (!A.reach && L1 + L2 > cap) fail(`arm ${A.id} would need a ${L1 + L2}px reach to get to its cells (limit ${cap}px); place it closer to the structures it moves`);
+      const meanA = pts.length ? Math.atan2(pts.reduce((a, p) => a + p[1], 0) / pts.length - by, pts.reduce((a, p) => a + p[0], 0) / pts.length - bx) * 180 / Math.PI : -90;
+      const rest = [meanA + 180 - 40, 115];
+      const restElbow = [bx + Math.cos((rest[0] * Math.PI) / 180) * L1, by + Math.sin((rest[0] * Math.PI) / 180) * L1];
+      const restTip = [restElbow[0] + Math.cos(((rest[0] + rest[1]) * Math.PI) / 180) * L2, restElbow[1] + Math.sin(((rest[0] + rest[1]) * Math.PI) / 180) * L2];
+      A.armGeo = { L1, L2, rest, restElbow, restTip };
+      A.armSegs = [[[bx, by], restElbow], [restElbow, restTip]];
+    }
+    const hitsArm = (box) => [...machines.values()].some((A) => (A.armSegs ?? []).some(([a, b]) => Array.from({ length: 9 }, (_, k) => [a[0] + ((b[0] - a[0]) * k) / 8, a[1] + ((b[1] - a[1]) * k) / 8]).some(([px, py]) => px > box.x - 4 && px < box.x + box.w + 4 && py > box.y - 4 && py < box.y + box.h + 4)));
+
     for (const m of machines.values()) {
       const g = m.geo;
       boxes.push({ ...g.body, id: m.id });
@@ -616,7 +679,7 @@ export function factory(opts) {
         tipBoxes.push({ x: tx - tw / 2, y: ty - 5, w: tw, h: 10 });
       });
       const order = ["s", "n", "e", "w"].sort((a, c) => busy[a] - busy[c]);
-      const side = m.labelSide ?? order.find((sd) => busy[sd] === busy[order[0]] && !tipBoxes.some((t) => overlap(t, place(sd).box, 2))) ?? order[0];
+      const side = m.labelSide ?? order.find((sd) => busy[sd] === busy[order[0]] && !tipBoxes.some((t) => overlap(t, place(sd).box, 2)) && !hitsArm(place(sd).box)) ?? order.find((sd) => !hitsArm(place(sd).box)) ?? order[0];
       let { lx, ly, la, box } = place(side);
       const hits = tipBoxes.filter((t) => overlap(t, box, 2));
       if (hits.length && side === "s") ly = Math.max(...hits.map((t) => t.y + t.h)) + 13;
@@ -769,7 +832,7 @@ export function factory(opts) {
       }
       if (e.kind === "belt") {
         svgBelts += `<path d="${pathD(e.pts)}" class="belt" data-edge="${esc(e.id)}" data-from="${esc(e.from)}" data-to="${esc(e.to)}"/>`;
-        for (let d = e.armOut ? 46 : 22; d < e.len - (e.armIn ? 40 : 14); d += 44) {
+        for (let d = 22; d < e.len - 14; d += 44) {
           const p = pointAt(e.pts, d), q = pointAt(e.pts, d + 1);
           const ang = Math.atan2(q[1] - p[1], q[0] - p[0]) * (180 / Math.PI);
           svgBelts += `<path d="M-3 -3.5L1.5 0L-3 3.5" class="chev" transform="translate(${r1(p[0])} ${r1(p[1])}) rotate(${r1(ang)})"/>`;
@@ -788,7 +851,7 @@ export function factory(opts) {
       if (s.e === u.e) continue;
       if (segsCross(s.a, s.b, u.a, u.b)) fail(`${s.e.kind} ${s.e.id} and ${u.e.kind} ${u.e.id} cross; reroute with via points (crossings read as joints)`);
     }
-    for (const m of machines.values()) if (!connected.has(m.id)) fail(`machine ${m.id} has no belt or signal; connect it or remove it`);
+    for (const m of machines.values()) if (!connected.has(m.id) && m.kind !== "arm") fail(`machine ${m.id} has no belt or signal; connect it or remove it`);
 
     for (const tl of timeline) {
       if (tl.type === "item") {
@@ -834,40 +897,72 @@ export function factory(opts) {
       const rad = (finalA * Math.PI) / 180;
       svgPorts += `<g class="rot" style="transform-origin:${cx}px ${cy}px"${frames ? animAttr(frames) : ""}><path d="M${cx} ${cy}L${r1(cx + Math.cos(rad) * L)} ${r1(cy + Math.sin(rad) * L)}" class="flap"/></g><circle cx="${cx}" cy="${cy}" r="3.2" class="pivot"/>`;
     }
-    const armBoxes = [];
-    for (const e of belts.filter((x) => x.pts)) {
-      for (const [on, pt, side, role] of [[e.armOut, e.p0, e.outSide, "out"], [e.armIn, e.p1, e.inSide, "in"]]) {
-        if (!on) continue;
-        const d = DIRS[side], bx = pt[0] + d[0] * 15, by = pt[1] + d[1] * 15;
-        const restOut = role === "in";
-        const tipX = bx + d[0] * 19 * (restOut ? 1 : -1), tipY = by + d[1] * 19 * (restOut ? 1 : -1);
-        const px = -d[1] * 5.5, py = d[0] * 5.5;
-        const swings = moves.filter((tl) => tl.e === e).map((tl) => (role === "in" ? tl.t1 - 0.12 : Math.max(0.05, tl.t0 - 0.32)));
-        const sweepBox = (sign) => {
-          const qx = -d[1] * sign, qy = d[0] * sign;
-          const xs = [bx + d[0] * 19, bx - d[0] * 19, bx + qx * 19, bx - qx * 6, bx - 6, bx + 6].filter((v, i) => i < 4 || !d[0]);
-          const ys = [by + d[1] * 19, by - d[1] * 19, by + qy * 19, by - qy * 6, by - 6, by + 6].filter((v, i) => i < 4 || !d[1]);
-          return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys), id: e.id };
-        };
-        const clean = (bx2) => !texts.some((t) => overlap(t, bx2) && t.owner !== `${e.from}.cell` && t.owner !== `${e.to}.cell`);
-        const sign = !swings.length || clean(sweepBox(1)) ? 1 : clean(sweepBox(-1)) ? -1 : 1;
-        const deg = 180 * sign;
-        let frames = null;
-        if (swings.length) {
-          frames = [[0, "transform:rotate(0deg)"]];
-          let last = -1;
-          for (const ts of swings) {
-            if (ts < last) continue;
-            frames.push([ts, "transform:rotate(0deg)"], [ts + 0.22, `transform:rotate(${deg}deg)`], [ts + 0.48, "transform:rotate(0deg)"]);
-            last = ts + 0.5;
-          }
+    for (const A of machines.values()) {
+      if (A.kind !== "arm") continue;
+      const { cx: bx, cy: by } = A.geo.armBase;
+      const mvs = A.armMoves ?? [];
+      const center = (c) => [c.x + c.w / 2, c.y + c.h / 2];
+      const { L1, L2, rest, restElbow, restTip } = A.armGeo;
+      if (!mvs.length) fail(`arm ${A.id} never moves anything; give it steps with moves, or remove it`);
+      for (const [a, b] of [[[bx, by], restElbow], [restElbow, restTip]]) {
+        const box = { x: Math.min(a[0], b[0]) - 5, y: Math.min(a[1], b[1]) - 5, w: Math.abs(a[0] - b[0]) + 10, h: Math.abs(a[1] - b[1]) + 10 };
+        for (const t of texts) if (overlap(t, box)) {
+          const steps = 8, hit = Array.from({ length: steps + 1 }, (_, k) => [a[0] + ((b[0] - a[0]) * k) / steps, a[1] + ((b[1] - a[1]) * k) / steps]).some(([px, py]) => px > t.x - 4 && px < t.x + t.w + 4 && py > t.y - 4 && py < t.y + t.h + 4);
+          if (hit) fail(`arm ${A.id} rests across text: ${t.what}; move the arm or set labelSide on that machine`);
         }
-        armBoxes.push(swings.length ? sweepBox(sign) : { x: Math.min(bx, tipX) - 6, y: Math.min(by, tipY) - 6, w: Math.abs(tipX - bx) + 12, h: Math.abs(tipY - by) + 12, id: e.id });
-        svgArms += `<circle cx="${r1(bx)}" cy="${r1(by)}" r="5.5" class="ins-base"/><g class="rot" style="transform-origin:${r1(bx)}px ${r1(by)}px"${frames ? animAttr(frames) : ""}><path d="M${r1(bx)} ${r1(by)}L${r1(tipX)} ${r1(tipY)}" class="ins-arm"/><path d="M${r1(tipX - px)} ${r1(tipY - py)}L${r1(tipX + px)} ${r1(tipY + py)}" class="ins-hand"/></g><circle cx="${r1(bx)}" cy="${r1(by)}" r="2.2" class="ins-pin"/>`;
+        for (const bb of boxes) if (bb.id !== A.id && [0.5, 1].some((f) => { const px = a[0] + (b[0] - a[0]) * f, py = a[1] + (b[1] - a[1]) * f; return px > bb.x && px < bb.x + bb.w && py > bb.y && py < bb.y + bb.h; })) fail(`arm ${A.id} rests over machine ${bb.id}; move the arm`);
       }
+      const ik = ([px, py], near) => {
+        const dx = px - bx, dy = py - by, d = Math.hypot(dx, dy);
+        if (d > L1 + L2 - 1 || d < Math.abs(L1 - L2) + 4) {
+          fail(`arm ${A.id} cannot reach a cell ${Math.round(d)}px away (reach ${L1 + L2}px); move the arm closer or set reach`);
+          return near;
+        }
+        const c2 = (d * d - L1 * L1 - L2 * L2) / (2 * L1 * L2);
+        const t2 = (Math.acos(Math.max(-1, Math.min(1, c2))) * 180) / Math.PI;
+        const t1 = (Math.atan2(dy, dx) - Math.atan2(L2 * Math.sin((t2 * Math.PI) / 180), L1 + L2 * Math.cos((t2 * Math.PI) / 180))) * 180 / Math.PI;
+        const unwrap = (a, ref) => a + 360 * Math.round((ref - a) / 360);
+        return [unwrap(t1, near[0]), t2];
+      };
+      const f1 = [], f2 = [], f3 = [];
+      const pose = (time, [a1, a2]) => {
+        f1.push([time, `transform:rotate(${r1(a1)}deg)`]);
+        f2.push([time, `transform:rotate(${r1(a2)}deg)`]);
+        f3.push([time, `transform:rotate(${r1(-(a1 + a2))}deg)`]);
+      };
+      pose(0, rest);
+      let cur = rest;
+      const rests = new Set(A.armRests ?? []);
+      for (const mv of mvs) {
+        const src = ik(center(mv.from), cur);
+        const dst = ik(center(mv.to), src);
+        pose(mv.t0, cur);
+        pose(mv.reach, src);
+        pose(mv.grip, src);
+        pose(mv.drop, dst);
+        pose(mv.after, dst);
+        cur = dst;
+        for (const r of rests) if (Math.abs(r - mv.after - 0.55) < 1e-6) {
+          pose(r, rest);
+          cur = rest;
+        }
+      }
+      const ex = bx + L1, tx = bx + L1 + L2;
+      const g1 = mvs.length ? animAttr(f1) : "", g2 = mvs.length ? animAttr(f2) : "", g3 = mvs.length ? animAttr(f3) : "";
+      let tokens = "";
+      for (const mv of mvs) {
+        const w = textW(mv.value) + 12;
+        tokens += `<g opacity="0"${animAttr([[0, "opacity:0"], [mv.grip, "opacity:0"], [mv.grip + 0.08, "opacity:1"], [mv.drop, "opacity:1"], [mv.drop + 0.08, "opacity:0"]])}>${rect(tx - w / 2, by + 6, w, 16, "item-b", 8)}${text(tx, by + 14, mv.value, "item-t", "middle", ` dominant-baseline="central"`)}</g>`;
+      }
+      svgArms += `<g class="rot" style="transform-origin:${bx}px ${by}px" transform="rotate(${r1(rest[0])} ${bx} ${by})"${g1}>` +
+        `<path d="M${bx} ${by}H${ex}" class="arm-seg"/><path d="M${bx} ${by}H${ex}" class="arm-core"/>` +
+        `<g class="rot" style="transform-origin:${ex}px ${by}px" transform="rotate(${rest[1]} ${ex} ${by})"${g2}>` +
+        `<path d="M${ex} ${by}H${tx}" class="arm-seg"/><path d="M${ex} ${by}H${tx}" class="arm-core"/>` +
+        `<path d="M${tx - 2} ${by - 7}V${by + 7}M${tx - 2} ${by - 7}h8M${tx - 2} ${by + 7}h8" class="grip"/>` +
+        `<g class="tip" transform="rotate(${r1(-(rest[0] + rest[1]))} ${tx} ${by + 14})"${g3}>${tokens}</g>` +
+        `<circle cx="${ex}" cy="${by}" r="5" class="arm-joint"/></g>` +
+        `<circle cx="${bx}" cy="${by}" r="6.5" class="arm-joint"/><circle cx="${bx}" cy="${by}" r="2.6" class="arm-pin"/></g>`;
     }
-    const ownedBy = (t, e) => [e.from, e.to].some((id) => t.owner === `${id}.cell`);
-    for (const t of texts) for (const a of armBoxes) if (overlap(t, a) && !ownedBy(t, belts.find((x) => x.id === a.id))) fail(`text over an inserter arm: ${t.what} covers the arm on ${a.id}`);
 
     for (const r of raws) {
       if (r.box) for (const b of boxes) if (overlap(r.box, b)) fail(`raw drawing overlaps machine ${b.id}`);
@@ -966,7 +1061,7 @@ export function factory(opts) {
 .belt{fill:none;stroke:var(--belt);stroke-width:9;stroke-linejoin:round}.chev{fill:none;stroke:var(--lo);stroke-width:1.4}
 .mouth{fill:var(--slot)}.well{fill:var(--cell);stroke:var(--lo);stroke-width:1}.route{fill:none;stroke:var(--lo);stroke-width:1.2;stroke-dasharray:3 3}
 .idx-rail{fill:var(--belt)}.idx-n{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;fill:var(--mid)}.end-t{font-size:8px;font-weight:700;letter-spacing:.06em;fill:var(--mid)}
-.ptr-box{fill:none;stroke:var(--accent);stroke-width:2}.ins-base{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.ins-arm{stroke:var(--ink);stroke-width:3;stroke-linecap:round}.ins-hand{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}.ins-pin{fill:var(--accent)}
+.ptr-box{fill:none;stroke:var(--accent);stroke-width:2}.arm-seg{stroke:var(--ink);stroke-width:9;stroke-linecap:round}.arm-core{stroke:var(--body);stroke-width:5;stroke-linecap:round}.arm-joint{fill:var(--body);stroke:var(--ink);stroke-width:1.6}.arm-pin{fill:var(--accent)}.grip{fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linecap:round}.pedestal{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.pedestal-ring{fill:var(--cell);stroke:var(--mid);stroke-width:1}
 .sig{fill:none;stroke:var(--mid);stroke-width:1.1;stroke-dasharray:4 3}.arrow{fill:var(--mid)}
 .ptr{fill:var(--accent)}.ptr-t{font-size:9px;font-weight:700;fill:var(--accent)}.arm{stroke:var(--accent);stroke-width:2.4;stroke-linecap:round}.needle{stroke:var(--accent);stroke-width:2}
 .hot{fill:none;stroke:var(--accent);stroke-width:2}
@@ -1004,7 +1099,7 @@ ${text(G, 47, opts.subtitle ?? "", "sub", "start")}
 <g class="cells">${svgCells}</g>
 <g class="labels">${svgLabels}</g>
 <g class="items">${svgItems}</g>
-<g class="inserters">${svgArms}</g>
+<g class="arms-top">${svgArms}</g>
 <g class="caption">${svgCaps}</g>
 <g class="legend">${svgLegend}</g>
 <g class="index">${svgIndex}</g>

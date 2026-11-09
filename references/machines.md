@@ -2,7 +2,7 @@
 
 Each canonical store gets exactly one machine. Its shape should show how the structure behaves (what goes in, where it waits, what comes out, what moves) before anyone reads the label. Open `examples/catalogue/beltline.svg` to see every kind drawn.
 
-Belts never just touch a machine. Each one enters through a dark slot. Wherever a belt feeds or empties a store (every kind below except `selector`, `cutter`, `press`, `turnstile`, `splitter` and `dock`), the kit stands an inserter arm on the belt end. The arm swings the moment an item arrives or leaves, so a store is visibly loaded and unloaded. Pass `arm: false` on a belt, or `inserters: false` to the factory, to leave them out.
+Belts never just touch a machine: each one enters through a dark slot.
 
 ## The catalogue
 
@@ -23,6 +23,7 @@ Belts never just touch a machine. Each one enters through a dark slot. Wherever 
 | Struct, record, registers, cursor, config | `record` | cabinet of labelled drawers | `field value`, one per drawer | none |
 | Lock, mutex, semaphore, gate | `turnstile` | three-arm gate | none | `gate` turns 60° per index |
 | Branch, dispatch, `match`, router | `splitter` | diverter: one inlet, an outlet per route, and a flap that swings to the route each item takes | none: conditions go on the outgoing belt labels | none: the kit animates the flap from the steps |
+| An operation that moves individual pieces: move-to-front, sorting, eviction into another store, compaction | `arm` | a long double-jointed arm on a pedestal that reaches into a cell, grips the piece, carries it and sets it down | none | none: the kit solves the joints from the cells it reaches |
 | Process boundary, OS, file, socket, user | `dock` | hatched loading bay (`external: true` if there is no first-party source) | optional, e.g. the final output | none |
 
 ## Rules for casting
@@ -33,7 +34,8 @@ Belts never just touch a machine. Each one enters through a dark slot. Wherever 
 4. **Values are short and real.** `0x1b`, `'x'`, `csi`, `14`. If the real value is long, show its shape (`"2*(3+4)"`, `7 tokens`, `{fg 170}`) and put the detail in the caption.
 5. **Pick by behaviour, not by type name.** A `Vec` used as a stack is a `stack`. A map plus a linked list kept in recency order is an `lru`, even if the code calls it a cache. A plain bounded map with no recency list is a `hashmap` with `evict: true`. A `struct` that is really a state machine is a `selector`.
 6. **When nothing fits,** use the closest kind and say so in the cast table, or draw a custom shape with `F.raw(svg, box)`. Keep it the same size as the kit machines and colour it with the kit classes (`body`, `cell`, `seam`, `mark`).
-7. **Merge the trivial.** Three tiny config structs read once are one `record`, or nothing at all.
+7. **Use an arm only when moving a piece is the point.** An LRU hit that relinks a node to the front, an insertion sort, a compaction, an eviction into a free list: these are worth an arm. Pushing onto a stack or writing a cell is not, so use plain writes. One arm per structure, parked beside it, is the norm.
+8. **Merge the trivial.** Three tiny config structs read once are one `record`, or nothing at all.
 
 ## The cast table
 

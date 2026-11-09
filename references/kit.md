@@ -15,7 +15,6 @@ const F = factory({
   baseUrl: "https://github.com/o/r/blob/2d5a1a4/",  // optional: turns sources into links
   speed: 170,                  // belt px per second (default 170)
   maxTexts: 140,               // clutter budget (default 140)
-  inserters: true,             // arms on belts that feed or empty a store; `arm: false` on a single belt
   sourceIndex: false,          // opt-in footer table of station -> path:line; off by default, stations already link
 });
 ```
@@ -26,7 +25,7 @@ const F = factory({
 F.machine(id, { kind, at: [col, row], label, src: "path:line", symbol?, cells?, pointers?, ...kindOptions })
 ```
 
-- `kind`: one of `rack drum hopper stack hashmap lru tower selector cutter press plate chain record turnstile splitter dock`. See `machines.md`. (`pigeonholes` is an old alias for `hashmap`.)
+- `kind`: one of `rack drum hopper stack hashmap lru tower selector cutter press plate chain record turnstile splitter arm dock`. See `machines.md`. (`pigeonholes` is an old alias for `hashmap`.)
 - `label`: 28 characters or fewer, normally the symbol (`toRpn()`, `tokens[]`, `CircBuffer`).
 - `src`: required unless `external: true`. `symbol` is optional; `check-sources` looks for it near the line.
 - `cells`: the initial values. `""` is empty.
@@ -50,6 +49,7 @@ Options for each kind:
 | `record` | `cellW` (default 92) |
 | `dock` | `w`, `h`, `cellW`, `external` |
 | `splitter` | `w`, `h`. The flap is drawn and animated from the steps that leave the splitter. |
+| `arm` | `reach` to fix the total reach in px (default: just enough for its moves, at most `maxReach`, which defaults to 9 grid cells). Arms need no belts. |
 
 ## Edges
 
@@ -72,6 +72,12 @@ F.step({
   pointers: { store: { head: 3 } },
   caption: "one line, ≤ 96 chars",
   src: "path:line",
+});
+F.step({                         // an arm moves one piece
+  arm: "mover",
+  moves: [{ from: ["lru", 5], to: ["lru", 3] }],   // [machine, cell]; value defaults to what the source cell holds
+  writes: { lru: [[5, "b"], [4, "c"], [3, ""]] },  // applied while the piece is held, so others can shift under it
+  caption: "the arm lifts a off the LRU end; the others slide down; a goes to MRU",
 });
 F.trace("reject");               // following captions get the prefix "reject ·"
 ```
@@ -103,5 +109,7 @@ F.trace("reject");               // following captions get the prefix "reject ·
 | `needs src` | Add `path:line`, or `external: true` for a boundary with no first-party source. |
 | `over the clutter budget` | Cut cells, merge machines, drop the side lanes into a second tour. Do not raise `maxTexts` to get past it. Only text visible in the static end state counts; moving items and earlier captions and values do not. |
 | `caption line … with its prefix` | The `n/N` and `trace ·` prefixes count toward the limit. Shorten the caption or the trace name. |
+| `arm … would need a …px reach` | Put the arm's pedestal next to the structure it moves. |
+| `arm … rests across text` / `rests over machine` | Move the pedestal; the arm folds away from its targets at rest. |
 | `gap … is longer` | Split it into two `F.gap()` lines. |
 | `drum sectors i and j overlap` | Raise `radius` or lower `cellW`. Group bytes into fewer sectors only if the caption says so. |

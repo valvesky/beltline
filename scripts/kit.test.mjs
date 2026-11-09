@@ -146,13 +146,6 @@ const tour = () =>
     .belt("sp", "hi", { out: "n", in: "w", label: "yes" })
     .belt("sp", "lo", { out: "s", in: "w", label: "no" });
 
-test("store belts get inserters that swing when an item arrives", () => {
-  const out = quiet(tour().step({ belt: "src->sp", item: "1" }).step({ belt: "sp->hi", item: "k", pointers: { hi: { h: 2 } }, writes: { hi: [[2, "k:1"]] } }));
-  assert.deepEqual(out.problems, []);
-  assert.equal((out.svg.match(/class="ins-arm"/g) ?? []).length, 2);
-  assert.match(out.svg, /rotate\((-)?180deg\)/);
-});
-
 test("the splitter flap turns to each route an item takes", () => {
   const out = quiet(tour().step({ belt: "sp->hi", item: "a" }).step({ belt: "sp->lo", item: "b" }));
   assert.deepEqual(out.problems, []);
@@ -171,8 +164,45 @@ test("hash map pointers frame the bucket index and the LRU shows both ends", () 
   assert.ok((out.svg.match(/class="idx-n"/g) ?? []).length >= 6);
 });
 
-test("planted fault fails the audit: a label in an inserter's sweep", () => {
-  const F = tour().machine("x", { kind: "record", at: [13, 5], label: "a label right here", src: "a.js:9", cells: ["v 1"], labelSide: "e" }).belt("x", "lo", { out: "s", in: "n" }).step({ belt: "sp->hi", item: "a" }).step({ belt: "sp->lo", item: "b" });
-  const out = quiet(F);
-  assert.match(out.problems.join("\n"), /inserter|through text|passes through|cross|closer/);
+const armTour = () =>
+  factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 12 })
+    .machine("r", { kind: "rack", at: [2, 2], label: "r[]", src: "a.js:1", cells: ["7", "3", "9"] })
+    .machine("o", { kind: "dock", at: [16, 2], label: "out", external: true })
+    .machine("bot", { kind: "arm", at: [4, 6], label: "arm", src: "a.js:2" })
+    .belt("r", "o");
+
+test("an arm lifts a piece, holds it while others shift, and sets it down", () => {
+  const out = quiet(armTour().step({ arm: "bot", moves: [{ from: ["r", 1], to: ["r", 0] }], writes: { r: [[1, "7"], [0, ""]] }, caption: "sort" }));
+  assert.deepEqual(out.problems, []);
+  assert.equal((out.svg.match(/class="arm-seg"/g) ?? []).length, 2);
+  const cells = [...out.svg.matchAll(/class="val[^"]*" text-anchor="middle" dominant-baseline="central"(?: id="[^"]+")?>([^<]*)</g)].map((m) => m[1]);
+  assert.ok(cells.includes("3") && cells.includes("7"));
+  assert.match(out.svg, /class="item-b"[^>]*\/><text[^>]*class="item-t"[^>]*>3</);
+  const end = out.svg.match(/<text x="([\d.]+)" y="[\d.]+" class="val val-w" text-anchor="middle" dominant-baseline="central"( id="[^"]+")?>3<\/text>/);
+  assert.ok(end, "3 is not written at the target");
 });
+
+test("the resting arm is the static end state", () => {
+  const out = quiet(armTour().step({ arm: "bot", moves: [{ from: ["r", 1], to: ["r", 0] }] }));
+  const g = out.svg.match(/<g class="rot" style="transform-origin:([\d.]+)px ([\d.]+)px" transform="rotate\(([-\d.]+) [\d.]+ [\d.]+\)" id="(bl-a\d+)">/);
+  assert.ok(g, "no animated arm root");
+  const kf = out.svg.match(new RegExp(`#${g[4]}\\{animation-name:(k\\d+)\\}`))[1];
+  const body = out.svg.match(new RegExp(`@keyframes ${kf}\\{([^\\n]+)\\}`))[1];
+  const last = body.match(/rotate\(([-\d.]+)deg\)\}$/)[1];
+  assert.equal(Number(last), Number(g[3]), "the arm does not return to its resting pose");
+});
+
+const armFaults = [
+  ["arm placed too far from its cells", (F) => F.machine("far", { kind: "rack", at: [22, 9], label: "far", src: "a.js:3", cells: ["x"] }).belt("far", "o").step({ arm: "bot", moves: [{ from: ["r", 0], to: ["far", 0] }] }), /reach to get to its cells/],
+  ["arm with a reach too short", (F) => { F.machine("bot2", { kind: "arm", at: [12, 7], label: "arm2", src: "a.js:4", reach: 40 }); return F.step({ arm: "bot2", moves: [{ from: ["r", 0], to: ["r", 2] }] }).step({ arm: "bot", moves: [{ from: ["r", 1], to: ["r", 0] }] }); }, /cannot reach/],
+  ["arm with no moves", (F) => F.step({ belt: "r->o", item: "1" }), /never moves anything/],
+  ["move to a missing cell", (F) => F.step({ arm: "bot", moves: [{ from: ["r", 0], to: ["r", 9] }] }), /needs from/],
+  ["arm step on a non-arm", (F) => F.step({ arm: "r", moves: [{ from: ["r", 0], to: ["r", 1] }] }), /not an arm/],
+];
+for (const [name, plant, expect] of armFaults) {
+  test(`planted fault fails the audit: ${name}`, () => {
+    const out = quiet(plant(armTour()));
+    assert.ok(out.problems.length > 0, "the audit passed a planted fault, so the check is broken");
+    assert.match(out.problems.join("\n"), expect);
+  });
+}
