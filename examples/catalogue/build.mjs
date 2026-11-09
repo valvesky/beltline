@@ -94,7 +94,7 @@ F.machine("pool", { kind: "pool", at: [1, 56], label: "connection pool", src, ce
   .machine("bucket", { kind: "bucket", at: [20, 56], label: "token bucket", src, cols: 3, cells: ["1", "1", "1", "1", "", ""] })
   .machine("wheel", { kind: "timerwheel", at: [26, 55], label: "timer wheel", src, radius: 60, cells: ["", "t1", "", "", "t2", "", "", ""], pointers: { now: 0 } })
   .machine("swap", { kind: "swapbuffer", at: [35, 56], label: "double buffer", src, cols: 5, rows: 4, cells: Array.from({ length: 40 }, (_, i) => ([6, 7, 8, 11, 13, 16, 17, 18].includes(i) ? "1" : "")), pointers: { front: 0 } })
-  .machine("floor", { kind: "floormap", at: [44, 55], label: "spatial grid", src, cols: 4, rows: 3, split: [6], pointers: { p1: 5, p2: 6, p3: 6 } })
+  .machine("floor", { kind: "floormap", at: [42, 55], label: "spatial grid", src, cols: 4, rows: 3, split: [6], pointers: { p1: 5, p2: 6, p3: 6 } })
   .belt("pool", "workers").belt("workers", "bucket").belt("bucket", "wheel").belt("wheel", "swap").belt("swap", "floor");
 
 F.step({ at: "wal", pointers: { wal: { lsn: 3, commit: 3 } }, writes: { wal: [[3, "commit"]] }, caption: "WAL: commit is appended at the head and the commit mark moves up to it" })
@@ -119,7 +119,7 @@ F.machine("mixed", { kind: "dock", at: [1, 64], label: "token stream", external:
   .machine("armOps", { kind: "arm", at: [26, 66], label: "filter: op", labelSide: "w", src })
   .machine("parser", { kind: "press", at: [31, 61], label: "parser", src })
   .belt("mixed", "rest", { carries: "hex" })
-  .belt("ops", "parser", { out: "n", in: "s", under: true, via: [[32.2, 68]], carries: "hex" });
+  .belt("ops", "parser", { out: "e", in: "s", under: true, carries: "hex" });
 
 F.trace("sorting")
   .step({ belt: "mixed->rest", item: "3", arm: "armDigits", moves: [{ from: "belt", to: ["digits", 0] }], caption: "the digit arm lifts 3 off the passing belt into its bin" })

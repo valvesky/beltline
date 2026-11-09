@@ -10,6 +10,15 @@
 - Evals with a three-axis rubric (correctness, visual design, visual clarity) and two fixture repos.
 
 ### Changed (beauty review, from owner review)
+- Second beauty eval: every machine that scored 8 or below is now 8.5 or more. Changes:
+  - LRU: larger, with a chute through the body;
+  - WAL tape: film holes, a spool head, and larger pointer labels everywhere;
+  - tower: circular nodes;
+  - B+tree: filled nodes with child-pointer dots;
+  - diverter: a rotary valve disk;
+  - spatial grid: bigger cells, tokens in quadrants;
+  - press: a hydraulic frame;
+  - catalogue: the operator arm's tunnel belt is re-routed so the arm rests clear.
 - Ports are light collars with a direction arrow instead of black slots, and underground hoods match them.
 - Heap, trie and graph nodes are circles, and terminal trie nodes get a second ring. Pointer frames take the shape of their target: round for nodes, squared for B+tree nodes and panes.
 - Broadcast, merge and join are light pipe junctions with a hub, with no box, bolts or heavy border.
