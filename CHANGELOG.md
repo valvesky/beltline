@@ -9,6 +9,14 @@
 - Examples: `calc` (the small-tour bar), `velocitty` (a real terminal emulator, the Plant-tour bar, linked to its source at 2d5a1a4) and `catalogue`.
 - Evals with a three-axis rubric (correctness, visual design, visual clarity) and two fixture repos.
 
+### Changed (velocitty example rebuilt)
+- The velocitty tour is rebuilt on the current kit:
+  - the ring has one slot per byte, arriving as streams of byte chips;
+  - the style table is a `hashmap` (pen colour to style id), matching `Styles.map`;
+  - the glyph cache is an `lru`, matching `Cache.Lru`'s map plus doubly linked list;
+  - runs travel as hex tokens.
+- New drum option `startAngle`.
+
 ### Changed (beauty review, from owner review)
 - Second beauty eval: every machine that scored 8 or below is now 8.5 or more. Changes:
   - LRU: larger, with a small exit notch on its bottom edge under the LRU end;

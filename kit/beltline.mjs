@@ -91,15 +91,15 @@ const MACHINES = {
     return { w, h: h + 5, body: { x, y, w, h }, svg, cells, pointer };
   },
   drum(m, x, y) {
-    const n = m.cells.length, R = m.radius ?? (n > 6 ? 58 : 48), cx = x + R, cy = y + R, rIn = R * 0.4;
+    const n = m.cells.length, R = m.radius ?? (n > 6 ? 58 : 48), cx = x + R, cy = y + R, rIn = R * 0.4, start = m.startAngle ?? -90;
     let svg = `<circle cx="${cx}" cy="${cy}" r="${R}" class="body"/><circle cx="${cx}" cy="${cy}" r="${R - 3}" class="ring-well"/>`;
     const cells = [];
     for (let i = 0; i < n; i++) {
-      const a0 = (i / n) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / n) * 2 * Math.PI - Math.PI / 2;
+      const a0 = (i / n) * 2 * Math.PI + (start * Math.PI) / 180, a1 = ((i + 1) / n) * 2 * Math.PI + (start * Math.PI) / 180;
       cells.push(ringCell(cx, cy, rIn + 2, R - 5, a0, a1, 1.6));
     }
     svg += `<circle cx="${cx}" cy="${cy}" r="${r1(rIn - 1)}" class="hub"/><circle cx="${cx}" cy="${cy}" r="3" class="pivot"/>`;
-    const pointer = { mode: "rot", cx, cy, r: R, bezel: true, tipLabel: R + 19, angle: (i) => ((i + 0.5) / n) * 360 - 90 };
+    const pointer = { mode: "rot", cx, cy, r: R, bezel: true, tipLabel: R + 19, angle: (i) => ((i + 0.5) / n) * 360 + start };
     return { w: 2 * R, h: 2 * R, body: { x, y, w: 2 * R, h: 2 * R }, svg, cells, pointer };
   },
   hopper(m, x, y) {

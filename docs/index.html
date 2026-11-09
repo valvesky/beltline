@@ -186,8 +186,8 @@ footer{margin-top:80px;padding-top:18px;border-top:1px solid var(--rule);font-si
   <figcaption>The <a href="https://github.com/valvesky/velocitty">velocitty</a> terminal emulator, from a PTY read to pixels on screen. Open it full size to read the values and follow the source links. It ships as <a href="https://github.com/valvesky/beltline/tree/main/examples/velocitty">an example</a>.</figcaption>
 </figure>
 
-<div class="n"><p>This tour came from one line, <code>/beltline /src/velocitty — the whole terminal, bytes from the pty to pixels</code>, given to a fresh Claude that had never seen the program. It read the Zig source, took its two inputs from the ring buffer's own tests, and traced them through eighteen machines.<sup>1</sup></p><aside><b>1</b>Nothing was run. Every value comes from reading the code at revision 2d5a1a4, and the tour says so in its subtitle.</aside></div>
-<p>Watch the drum on the left. Its <code>tail</code> arm stops behind three bytes of an unfinished escape sequence, and the next read completes them. The colour lands in the pen, the style table interns it as id 1, and the <code>é</code> misses the glyph cache, so it is rasterised into the atlas before it reaches the framebuffer.</p>
+<div class="n"><p>This tour came from one line, <code>/beltline /src/velocitty — the whole terminal, bytes from the pty to pixels</code>, given to a fresh Claude that had never seen the program. It read the Zig source, took its two inputs from the ring buffer's own tests, and traced them through seventeen machines. It has since been rebuilt on the current kit.<sup>1</sup></p><aside><b>1</b>Nothing was run. Every value comes from reading the code at revision 2d5a1a4, and the tour says so in its subtitle.</aside></div>
+<p>Watch the drum on the left. The bytes stream in one per slot, and its <code>tail</code> marker stops behind three bytes of an unfinished escape sequence until the next read completes them. The colour lands in the pen and the style map interns it as id 1. The <code>é</code> misses the glyph LRU, takes the most-recently-used slot, and is rasterised into the atlas before it reaches the framebuffer.</p>
 
 <section id="machines">
   <h2>Machines, not dashboards <i>01</i></h2>
@@ -325,10 +325,10 @@ footer{margin-top:80px;padding-top:18px;border-top:1px solid var(--rule);font-si
   <table>
     <thead><tr><th></th><th>Hand-drawn</th><th>Beltline</th></tr></thead>
     <tbody>
-      <tr><td>Text at rest</td><td class="num">559 pieces</td><td class="num">69 pieces</td></tr>
+      <tr><td>Text at rest</td><td class="num">559 pieces</td><td class="num">65 pieces</td></tr>
       <tr><td>Colours</td><td class="num">74</td><td class="num">24, one accent</td></tr>
       <tr><td>Longest line</td><td class="num">263 characters</td><td class="num">96 at most</td></tr>
-      <tr><td>Sources checked</td><td class="num">none</td><td class="num">40, all resolved</td></tr>
+      <tr><td>Sources checked</td><td class="num">none</td><td class="num">41, all resolved</td></tr>
     </tbody>
   </table>
   <p>What it gave up is stated in the tour itself: the keyboard path, images and scrollback are listed as gaps in the footer, and Claude offered a separate tour for each.</p>
