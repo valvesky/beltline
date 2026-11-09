@@ -71,6 +71,14 @@ const joinCircles = (a, b, ra, rb, cls) => {
   return `<path d="M${r1(ax + ux * ra)} ${r1(ay + uy * ra)}L${r1(bx - ux * rb)} ${r1(by - uy * rb)}" class="${cls}"/>`;
 };
 
+const exitNotch = (cx, edgeY, fromY) => {
+  let out = "";
+  if (edgeY - fromY > 10) out += `<path d="M${r1(cx)} ${r1(fromY + 3)}V${r1(edgeY - 7)}" class="evict-guide"/>`;
+  out += rect(cx - 9, edgeY - 4, 18, 8, "collar", 2.5);
+  out += `<path d="M${r1(cx)} ${r1(edgeY + 3)}L${r1(cx - 3.4)} ${r1(edgeY - 2.4)}L${r1(cx + 3.4)} ${r1(edgeY - 2.4)}Z" class="collar-arrow"/>`;
+  return out;
+};
+
 const MACHINES = {
   rack(m, x, y) {
     const n = m.cells.length, cw = m.cellW ?? 30, ch = 24, pad = 6;
@@ -132,7 +140,7 @@ const MACHINES = {
         prev = c;
       }
     }
-    if (m.evict) svg += `<path d="M${x + w - 18} ${y + h - 6}l14 10M${x + w - 18} ${y + h - 14}l14 10" class="seam"/>`;
+    if (m.evict) svg += exitNotch(cells[n - 1].x + cw / 2, y + h, cells[n - 1].y + ch);
     const pointer = { mode: "y", at: (i) => ({ x: x + pad - 1, y: y + pad + i * ch + ch / 2, w: idxW + 2, h: ch - 2 }) };
     return { w, h, body: { x, y, w, h }, svg, cells, pointer, idx };
   },
@@ -154,13 +162,10 @@ const MACHINES = {
     }
     svg += `<path d="M${r1(listX - 9)} ${y + 6}V${y + h - 6}" class="seam"/>`;
     const last = cells.at(-1);
-    if (nn) {
-      const cx0 = last.x + last.w / 2, top = ly + 24;
-      svg += `<path d="M${r1(cx0 - 9)} ${r1(top)}L${r1(cx0 + 4)} ${r1(y + h + 7)}H${r1(cx0 + 18)}L${r1(cx0 + 9)} ${r1(top)}Z" class="tray"/><path d="M${r1(cx0 - 1)} ${r1(top + 6)}L${r1(cx0 + 7)} ${r1(y + h + 2)}" class="seam"/>`;
-    }
+    if (nn) svg += exitNotch(last.x + last.w / 2, y + h, ly + 24);
     const ends = nn ? [{ x: cells[nb].x + nw / 2, y: ly - 8, s: m.mru ?? "MRU" }, { x: last.x + nw / 2, y: ly - 8, s: m.lruLabel ?? "LRU" }] : [];
     const pointer = { mode: "y", at: (i) => ({ x: x + pad - 1, y: y + pad + i * ch + ch / 2, w: idxW + 2, h: ch - 2 }) };
-    return { w, h: h + 8, body: { x, y, w, h }, svg, cells, pointer, idx, ends };
+    return { w, h, body: { x, y, w, h }, svg, cells, pointer, idx, ends };
   },
   tower(m, x, y) {
     const n = Math.min(m.cells.length, 7), r = 11, lvGap = 14, w = 4 * 34 + 10, pad = 8;
@@ -1625,7 +1630,7 @@ export function factory(opts) {
 .lbl{font-size:11px;font-weight:600;fill:var(--mid);letter-spacing:.02em}
 .cond{font-size:10px;font-style:italic;fill:var(--mid)}.sig-t{font-size:10px;fill:var(--mid)}
 .belt-rail{fill:none;stroke:var(--lo);stroke-width:12;stroke-linejoin:round}.belt{fill:none;stroke:var(--belt);stroke-width:9;stroke-linejoin:round}.belt-roll{fill:none;stroke:var(--lo);stroke-width:7;stroke-dasharray:1.6 10.4;opacity:.75}.chev{fill:none;stroke:var(--lo);stroke-width:1.4}
-.mouth{fill:var(--slot)}.bnode{fill:var(--body);stroke:var(--ink);stroke-width:1.3}.branch{stroke:var(--mid);stroke-width:1.5;stroke-linecap:round}.cyl{fill:var(--mid)}.collar{fill:var(--cell);stroke:var(--ink);stroke-width:1.3}.collar-arrow{fill:var(--ink)}.ring2{fill:none;stroke:var(--ink);stroke-width:1.2}.ring-well{fill:var(--cell);stroke:var(--lo);stroke-width:1}.shutter{fill:var(--cell);stroke:var(--lo);stroke-width:1}.slat-line{stroke:var(--lo);stroke-width:1}
+.mouth{fill:var(--slot)}.evict-guide{stroke:var(--mid);stroke-width:1.2;stroke-dasharray:2 2.5}.bnode{fill:var(--body);stroke:var(--ink);stroke-width:1.3}.branch{stroke:var(--mid);stroke-width:1.5;stroke-linecap:round}.cyl{fill:var(--mid)}.collar{fill:var(--cell);stroke:var(--ink);stroke-width:1.3}.collar-arrow{fill:var(--ink)}.ring2{fill:none;stroke:var(--ink);stroke-width:1.2}.ring-well{fill:var(--cell);stroke:var(--lo);stroke-width:1}.shutter{fill:var(--cell);stroke:var(--lo);stroke-width:1}.slat-line{stroke:var(--lo);stroke-width:1}
 .chan-rail{fill:none;stroke:var(--lo);stroke-width:9;stroke-linejoin:round;stroke-linecap:round}.chan{fill:none;stroke:var(--belt);stroke-width:5.5;stroke-linejoin:round;stroke-linecap:round}.hub-ring{fill:var(--body);stroke:var(--ink);stroke-width:1.4}
 .frame-bar{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}.bed{fill:var(--ink)}.head-tri{fill:var(--ink)}.hdr-f{fill:var(--cell)}.arrowhead{fill:var(--mid)}
 .tray{fill:var(--cell);stroke:var(--mid);stroke-width:1.2;stroke-linejoin:round}.pipe{stroke:var(--ink);stroke-width:4;stroke-linecap:round}.hub-cap{fill:var(--body);stroke:var(--ink);stroke-width:1.4}.ground{fill:var(--paper)}.hood{fill:var(--body);stroke:var(--ink);stroke-width:1.3}.hood-mouth{stroke:var(--slot);stroke-width:3;stroke-linecap:round}.bolt{fill:var(--mid)}.bevel{stroke:var(--hl);stroke-width:1.4;stroke-linecap:round;opacity:.8}

@@ -11,7 +11,7 @@
 
 ### Changed (beauty review, from owner review)
 - Second beauty eval: every machine that scored 8 or below is now 8.5 or more. Changes:
-  - LRU: larger, with a chute through the body;
+  - LRU: larger, with a small exit notch on its bottom edge under the LRU end;
   - WAL tape: film holes, a spool head, and larger pointer labels everywhere;
   - tower: circular nodes;
   - B+tree: filled nodes with child-pointer dots;
