@@ -5,8 +5,8 @@ const F = factory({
   subtitle: "Every kit machine with sample values. Illustrative, not a recording.",
   desc: "One of each machine kind in the Beltline kit, joined by belts. Inserter arms load and unload the stores, a diverter flap picks a route, a hash pointer finds a bucket, and an LRU moves a node to the front of its list.",
   cols: 50,
-  rows: 27,
-  maxTexts: 160,
+  rows: 45,
+  maxTexts: 220,
   writeOnFail: process.env.WOF === "1",
 });
 
@@ -51,6 +51,38 @@ F.step({ belt: "rack->drum", item: "9", caption: "an inserter lifts the item off
   .step({ belt: "split->press", item: "num 42", caption: "branch: kind == num, so the flap swings to the upper route" })
   .step({ belt: "press->plate", item: "glyph", writes: { plate: [[[11, 12], "a"]] }, caption: "the press renders a glyph and an inserter drops it on the plate" })
   .step({ belt: "cut->split", item: "+", caption: "the next token is an operator" })
-  .step({ belt: "split->lock", item: "op +", pointers: { lock: { gate: 1 } }, caption: "branch: else, so the flap swings down and the lock's gate turns" });
+  .step({ belt: "split->lock", item: "op +", pointers: { lock: { gate: 1 } }, caption: "branch: else, so the flap swings down and the lock's gate turns" })
+
+F.machine("deque", { kind: "deque", at: [1, 30], label: "deque", labelSide: "n", src, cells: ["", "b", "c", "d", ""], pointers: { front: 1, back: 4 } })
+  .machine("heap", { kind: "heap", at: [10, 28], label: "heap · priority queue", src, cells: ["3", "5", "4", "9", "7", "8", ""] })
+  .machine("bloom", { kind: "bits", at: [20, 30], label: "bitset · bloom filter", src, cells: ["", "1", "", "", "1", "", "", "", "", "1", "", ""], pointers: { h1: 1, h2: 4, h3: 9 } })
+  .machine("table", { kind: "grid", at: [33, 29], label: "matrix · DP table", src, cols: 4, cells: ["0", "1", "1", "2", "1", "1", "2", "", "1", "2", "", ""] })
+  .belt("deque", "heap").belt("heap", "bloom").belt("bloom", "table");
+
+F.machine("graph", { kind: "graph", at: [1, 36], label: "graph", src, cells: ["A", "B", "C", "D", "E"], edges: [[0, 1], [1, 2], [2, 3], [3, 4], [0, 2]], directed: true, pointers: { at: 0 } })
+  .machine("fan", { kind: "fanout", at: [11, 37], label: "broadcast", src })
+  .machine("count", { kind: "counter", at: [18, 35], label: "counter", src, cells: ["0", "4", "1"] })
+  .machine("alloc", { kind: "arena", at: [17, 40], label: "arena · bump allocator", src, capacity: 16, sizes: [3, 2, 4, 2], cells: ["hdr", "k", "", ""], pointers: { top: 2 } })
+  .machine("join", { kind: "merge", at: [27, 37], label: "merge · join", src })
+  .machine("sink", { kind: "dock", at: [33, 37], label: "subscriber", external: true, cells: [""], cellW: 30 })
+  .belt("graph", "fan")
+  .belt("fan", "count", { out: "n", in: "w" })
+  .belt("fan", "alloc", { out: "s", in: "w" })
+  .belt("count", "join", { out: "e", in: "n" })
+  .belt("alloc", "join", { out: "e", in: "s" })
+  .belt("join", "sink");
+
+F.step({ at: "deque", pointers: { deque: { front: 0 } }, writes: { deque: [[0, "a"]] }, caption: "deque: push_front puts a at the front mouth" })
+  .step({ belt: "deque->heap", item: "d", pointers: { deque: { back: 3 } }, writes: { deque: [[3, ""]], heap: [[6, "1"]] }, caption: "pop_back sends d on; the heap receives 1 in its last slot" })
+  .step({ at: "heap", writes: { heap: [[6, "4"], [2, "1"]] }, caption: "heap: 1 is smaller than its parent 4, so they swap" })
+  .step({ at: "heap", writes: { heap: [[2, "3"], [0, "1"]] }, caption: "1 is smaller than the root 3, swap again: the minimum is on top" })
+  .step({ belt: "heap->bloom", item: "cat", pointers: { bloom: { h1: 2, h2: 7, h3: 10 } }, writes: { bloom: [[[2, 7, 10], "a"]] }, caption: "bloom filter: three hashes of cat light bits 2, 7 and 10" })
+  .step({ belt: "bloom->table", item: "dp", writes: { table: [[7, "3"], [10, "3"], [11, "4"]] }, caption: "DP table: each cell is filled from the one above and to the left" })
+  .step({ at: "graph", pointers: { graph: { at: 1 } }, writes: { graph: [[0, "A"], [1, "B"]] }, caption: "graph: a traversal visits A, then follows the edge to B" })
+  .step({ at: "graph", pointers: { graph: { at: 2 } }, writes: { graph: [[2, "C"]] }, caption: "B's only edge leads to C, which A also reaches directly" })
+  .step({ belt: "graph->fan", item: "visit C", caption: "the visit is published as an event" })
+  .step({ belt: ["fan->count", "fan->alloc"], item: "evt", writes: { count: [[2, "2"]], alloc: [[2, "evt"]] }, pointers: { alloc: { top: 3 } }, caption: "broadcast: every subscriber gets a copy; the counter ticks, the arena bumps" })
+  .step({ belt: ["count->join", "alloc->join"], item: ["042", "evt"], caption: "merge: both streams join into one" })
+  .step({ belt: "join->sink", item: "042+evt", caption: "the joined result reaches the subscriber" });
 
 F.build(new URL("./beltline.svg", import.meta.url).pathname);

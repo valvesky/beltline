@@ -25,7 +25,7 @@ const F = factory({
 F.machine(id, { kind, at: [col, row], label, src: "path:line", symbol?, cells?, pointers?, ...kindOptions })
 ```
 
-- `kind`: one of `rack drum hopper stack hashmap lru tower selector cutter press plate chain record turnstile splitter arm dock`. See `machines.md`. (`pigeonholes` is an old alias for `hashmap`.)
+- `kind`: one of `rack drum hopper stack hashmap lru heap deque bits grid graph counter arena tower selector cutter press plate chain record turnstile splitter fanout merge arm dock`. See `machines.md`. (`pigeonholes` is an old alias for `hashmap`.)
 - `label`: 28 characters or fewer, normally the symbol (`toRpn()`, `tokens[]`, `CircBuffer`).
 - `src`: required unless `external: true`. `symbol` is optional; `check-sources` looks for it near the line.
 - `cells`: the initial values. `""` is empty.
@@ -50,6 +50,14 @@ Options for each kind:
 | `record` | `cellW` (default 92) |
 | `dock` | `w`, `h`, `cellW`, `external` |
 | `splitter` | `w`, `h`. The flap is drawn and animated from the steps that leave the splitter. |
+| `heap` | `cellW`, `w`, `h` |
+| `deque` | `cellW` (default 30) |
+| `bits` | `cellW` (lamp pitch, default 16) |
+| `grid` | `cols` (default 4), `cellW` (default 30) |
+| `graph` | `edges: [[from, to], …]`, `directed`, `radius` (default 44), `startAngle` (default -90), `cellW` |
+| `counter` | `cellW` (default 16) |
+| `arena` | `capacity` and `sizes` in units, `unit` (px, default 10) |
+| `fanout`, `merge` | `w`, `h`. The bus is wired to every belt automatically. |
 | `arm` | `reach` to fix the total reach in px (default: just enough for its moves, at most `maxReach`, which defaults to 9 grid cells). Arms need no belts. |
 
 ## Edges
@@ -80,6 +88,7 @@ F.step({                         // an arm moves one piece
   writes: { lru: [[5, "b"], [4, "c"], [3, ""]] },  // applied while the piece is held, so others can shift under it
   caption: "the arm lifts a off the LRU end; the others slide down; a goes to MRU",
 });
+F.step({ belt: ["fan->a", "fan->b"], item: ["x", "y"] });   // several belts at once (broadcast, concurrency)
 F.trace("reject");               // following captions get the prefix "reject ·"
 ```
 

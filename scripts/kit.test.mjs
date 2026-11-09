@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { factory } from "../kit/beltline.mjs";
+import { factory, KINDS } from "../kit/beltline.mjs";
 
 const base = () =>
   factory({ title: "t", subtitle: "Illustrative walkthrough, not a recording.", desc: "d", cols: 30, rows: 10 })
@@ -254,4 +254,52 @@ test("a machine far off the line is left where the author put it", () => {
     .step({ belt: "a->b", item: "1" });
   const out = quiet(F);
   assert.match(out.svg, /data-machine="b" data-box="240 208/);
+});
+
+test("every machine kind renders and passes the audit on its own", () => {
+  const extra = {
+    rack: { cells: ["1", ""] }, drum: { cells: ["a", "", "", ""] }, hopper: { cells: ["x"] }, stack: { cells: ["1", ""] },
+    hashmap: { cells: ["k:1", ""] }, pigeonholes: { cells: ["k:1", ""] }, lru: { buckets: 2, cells: ["a→0", "", "a", ""] }, tower: { cells: ["m", "f", "t"] },
+    selector: { states: ["a", "b"], cells: ["s 1"], cellW: 50 }, cutter: {}, press: {}, plate: { cols: 4, rows: 2 }, chain: { cells: ["n1", "n2"] },
+    record: { cells: ["a 1"] }, turnstile: {}, splitter: {}, heap: { cells: ["1", "2", "3"] }, deque: { cells: ["a", ""] }, bits: { cells: ["1", "", "", ""] },
+    grid: { cols: 2, cells: ["1", "2", "3", "4"] }, graph: { cells: ["A", "B", "C"], edges: [[0, 1], [1, 2]] }, counter: { cells: ["0", "1"] },
+    arena: { capacity: 8, sizes: [2, 3], cells: ["a", ""] }, fanout: {}, merge: {}, dock: { external: true },
+  };
+  for (const kind of KINDS.filter((k) => k !== "arm")) {
+    const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 40, rows: 14 })
+      .machine("src", { kind: "dock", at: [1, 4], label: "in", external: true })
+      .machine("m", { kind, at: [8, 3], label: kind, src: "a.js:1", ...(extra[kind] ?? {}) })
+      .belt("src", "m")
+      .step({ belt: "src->m", item: "1" });
+    const out = quiet(F);
+    assert.deepEqual(out.problems, [], `${kind}: ${out.problems.join("; ")}`);
+    assert.match(out.svg, new RegExp(`class="m m-${kind}"`), kind);
+  }
+});
+
+test("a step can move items along several belts at once", () => {
+  const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 40, rows: 14 })
+    .machine("f", { kind: "fanout", at: [4, 5], label: "fan", src: "a.js:1" })
+    .machine("a", { kind: "press", at: [12, 1], label: "a()", src: "a.js:2" })
+    .machine("b", { kind: "press", at: [12, 9], label: "b()", src: "a.js:3" })
+    .belt("f", "a", { out: "n", in: "w" }).belt("f", "b", { out: "s", in: "w" })
+    .step({ belt: ["f->a", "f->b"], item: ["x", "y"], caption: "both" });
+  const out = quiet(F);
+  assert.deepEqual(out.problems, []);
+  const starts = [...out.svg.matchAll(/<g class="item" opacity="0" id="(bl-a\d+)">/g)].map((m) => out.svg.match(new RegExp(`#${m[1]}\\{animation-name:(k\\d+)\\}`))[1]).map((k) => out.svg.match(new RegExp(`@keyframes ${k}\\{([^\\n]+)\\}`))[1].match(/([\d.]+)%\{opacity:1/)[1]);
+  assert.equal(starts.length, 2);
+  assert.equal(starts[0], starts[1], "the two items do not leave together");
+  assert.equal((out.svg.match(/class="bus"/g) ?? []).length, 2);
+});
+
+test("a graph pointer walks from node to node", () => {
+  const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 12 })
+    .machine("g", { kind: "graph", at: [2, 2], label: "g", src: "a.js:1", cells: ["A", "B", "C"], edges: [[0, 1], [1, 2]], directed: true, pointers: { at: 0 } })
+    .machine("o", { kind: "dock", at: [16, 3], label: "out", external: true })
+    .belt("g", "o")
+    .step({ at: "g", pointers: { g: { at: 2 } } });
+  const out = quiet(F);
+  assert.deepEqual(out.problems, []);
+  assert.match(out.svg, /transform:translate\(-?[\d.]+px,-?[\d.]+px\)/);
+  assert.equal((out.svg.match(/marker-end="url\(#bl-arrow\)"/g) ?? []).length, 2);
 });

@@ -14,7 +14,16 @@ Belts never just touch a machine: each one enters through a dark slot.
 | Stack, call stack, undo list | `stack` | open tube on a spring, filled from the bottom | plates, bottom = index 0 | none: the fill level is the pointer |
 | Hash map, dictionary, set, intern table | `hashmap` | numbered bucket rack; collisions chain off to the right | one `key:value` per bucket, then the `chain` cells | `h` frames the bucket the key hashes to |
 | LRU or bounded cache built from a map plus a doubly linked list | `lru` | hash index on the left, MRU ⇄ LRU node list on the right, eviction chute at the LRU end | `buckets` map cells (`key→node`), then the list nodes from MRU to LRU | `h` frames the map bucket |
-| Tree, trie, heap, B-tree page | `tower` | sorting tower with branching chutes | nodes in breadth-first order, up to 7 | none |
+| Heap, priority queue | `heap` | binary heap inside a pyramid frame, minimum at the apex | nodes in breadth-first order, up to 7 | none: show sift-up and sift-down as writes |
+| Deque, double-ended queue, work-stealing queue | `deque` | tube flared at both mouths | one per slot | `front` and `back` slide under the slots |
+| Bitset, bloom filter, bitmap index, visited set | `bits` | strip of lamps, indexed every 4 | `"1"` lit, `"a"` lit by this trace, `""` off | one pointer per hash (`h1`, `h2`, `h3`) points down from above |
+| Matrix, 2D array, table, DP table, page table | `grid` | value grid with row and column rails | row-major, `cols` per row | none |
+| Graph, adjacency list, dependency or call graph | `graph` | pegboard of nodes on a ring, joined by edges (`directed: true` for arrows) | one per node, up to 7 | `at` is a ring that walks the traversal |
+| Counter, refcount, sequence number, semaphore count | `counter` | odometer of digit wheels with a lever | one digit per wheel | none |
+| Arena, bump allocator, slab, free space in a buffer | `arena` | memory bar of blocks sized by `sizes`, free tail dashed | one per block | `top` marks the next free offset from above |
+| Broadcast, pub/sub, event emitter, observer list | `fanout` | one inlet wired by a bus to every outlet | none | none: move items on all outlets in one step |
+| Join, merge, mux, `select` over channels, zip | `merge` | many inlets wired by a bus to one outlet | none | none |
+| Tree, trie, B-tree page | `tower` | sorting tower with branching chutes | nodes in breadth-first order, up to 7 | none |
 | State machine, mode, parser state | `selector` | rotary dial with a needle, plus optional register cells | `name value` registers | `state` needle turns to the `states[]` index |
 | Tokenizer, lexer, splitter of a stream | `cutter` | guillotine over a slot | optional registers (`pos 3`) | none |
 | Pure transform, encoder, renderer step | `press` | stamping head over a die | optional registers | none |
