@@ -32,6 +32,7 @@ F.machine(id, { kind, at: [col, row], label, src: "path:line", symbol?, cells?, 
 - `pointers`: `{ name: index }` for `rack` (`x` pointers), `drum` (arms), `selector` (`state`) and `turnstile` (`gate`).
 - `labelSide`: `"n" | "s" | "e" | "w"`, to override automatic label placement. By default the label goes on the side with the fewest belts, preferring s, n, e, then w.
 - `labelAt: [col, row]` pins the label, anchored at its left edge, when every side is busy.
+- `align: false` stops the kit snapping this machine onto its neighbours' shared line (see `layout.md`).
 
 Options for each kind:
 

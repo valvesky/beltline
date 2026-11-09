@@ -16,6 +16,7 @@
 - New `hashmap` (numbered bucket rack, `h` frame, collision chains) replaces the cubby wall; `pigeonholes` stays as an alias.
 - New `lru`: a hash index next to a doubly linked MRU ⇄ LRU list with an eviction chute, matching the common implementation. `chain` gains `doubly`.
 - Machines carry `data-box`, and the docs crops are generated from it.
+- Machines joined by a straight belt snap onto one shared line, and ports are spaced evenly around the centre of a side, so every machine's input and output are level. This replaces the old belt-straightening, which slid ports off centre.
 
 ### Fixed (from the first real run, on velocitty, and an independent review)
 - Routes could get a diagonal segment after simplification; paired belts could collapse onto one line.
