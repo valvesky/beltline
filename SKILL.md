@@ -20,6 +20,7 @@ The kit in `kit/beltline.mjs` prevents both. The agent decides **what** the mach
 ## Examples
 
 - `examples/calc/`: a tokenizer, a shunting-yard and a stack machine, with 10 machines, 20 steps and a reject path. It is the quality bar for a small tour: read `build.mjs` and open `beltline.svg` before you start.
+- `examples/velocitty/`: a real terminal emulator, from a PTY read to pixels, made by a fresh agent following this skill. It has 18 machines, two traces and 40 source links, and is the quality bar for a Plant tour. Its `build.mjs` shows drums with named arms, pixel plates painted in bulk, a long return lane and `F.gap()` lines.
 - `examples/catalogue/`: every machine kind on one sheet. Open it when casting machines.
 
 ## Size it first

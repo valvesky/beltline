@@ -183,7 +183,7 @@ footer{margin-top:80px;padding-top:18px;border-top:1px solid var(--rule);font-si
 
 <figure class="hero wide">
   <a class="full" href="tours/velocitty.svg"><img class="tour" src="tours/velocitty.svg" alt="Animated factory tour of the velocitty terminal emulator: PTY bytes enter a ring-buffer drum, a cutter splits them into runs, a diverter sends text and escape sequences to the grid, styles and title, and the renderer paints glyphs from an atlas into the framebuffer and out to the window."></a>
-  <figcaption>The velocitty terminal emulator, from a PTY read to pixels on screen. Open it full size to read the values.</figcaption>
+  <figcaption>The <a href="https://github.com/valvesky/velocitty">velocitty</a> terminal emulator, from a PTY read to pixels on screen. Open it full size to read the values and follow the source links. It ships as <a href="https://github.com/valvesky/beltline/tree/main/examples/velocitty">an example</a>.</figcaption>
 </figure>
 
 <div class="n"><p>This tour came from one line, <code>/beltline /src/velocitty — the whole terminal, bytes from the pty to pixels</code>, given to a fresh Claude that had never seen the program. It read the Zig source, took its two inputs from the ring buffer's own tests, and traced them through eighteen machines.<sup>1</sup></p><aside><b>1</b>Nothing was run. Every value comes from reading the code at revision 2d5a1a4, and the tour says so in its subtitle.</aside></div>

@@ -6,7 +6,7 @@
 - The kit (`kit/beltline.mjs`): 16 machine kinds cast by behaviour, orthogonal belt routing with port distribution, keyframes compiled from steps, light and dark tokens, reduced-motion gating, a legend and source index, and a build-time audit.
 - `scripts/check.mjs`, `check-sources.mjs` and `capture.mjs`, with planted-fault tests.
 - References: `machines.md` (the casting catalogue), `layout.md`, `kit.md` and `verify.md`.
-- Examples: `calc` (the quality bar) and `catalogue`.
+- Examples: `calc` (the small-tour bar), `velocitty` (a real terminal emulator, the Plant-tour bar, linked to its source at 2d5a1a4) and `catalogue`.
 - Evals with a three-axis rubric (correctness, visual design, visual clarity) and two fixture repos.
 
 ### Fixed (from the first real run, on velocitty, and an independent review)

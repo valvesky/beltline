@@ -6,6 +6,8 @@ A skill for coding agents that turns a codebase into a factory tour: one standal
 
 The image above is `examples/calc/`. It shows a tokenizer, a shunting-yard and a stack machine evaluating `2*(3+4)`, plus a rejected `2$`.
 
+For a real program, see `examples/velocitty/`: the [velocitty](https://github.com/valvesky/velocitty) terminal emulator, from a PTY read to pixels on screen, with every station linked to its source at revision 2d5a1a4.
+
 ## Install
 
 ```sh
@@ -33,7 +35,7 @@ The agent reads the source and traces a concrete input, usually one taken from a
 | `scripts/check.mjs` | static SVG checks: self-contained, accessible, reduced motion, and the clutter budget |
 | `scripts/check-sources.mjs` | resolves every `data-src="path:line"` at the recorded revision |
 | `scripts/capture.mjs` | headless-Chrome frames at chosen moments and widths, reduced motion, `<img>` embed, close-ups |
-| `examples/` | `calc` (the quality bar) and `catalogue` (every machine kind) |
+| `examples/` | `calc` (a small tour), `velocitty` (a whole terminal emulator, linked to its source) and `catalogue` (every machine kind) |
 | `evals/` | prompts, fixture repos, and the three-axis rubric |
 | `docs/` | the single-page site, with copies of the example tours in `docs/tours/` |
 
