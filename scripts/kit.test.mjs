@@ -424,3 +424,39 @@ test("rectangular machine bodies carry corner bolts and a top highlight; round o
   const drum = quiet(factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 10 }).machine("r", { kind: "drum", at: [2, 2], label: "r", src: "a.js:1", cells: ["", "", "", ""] }).machine("o", { kind: "dock", at: [14, 3], label: "o", external: true }).belt("r", "o").step({ belt: "r->o", item: "1" }));
   assert.doesNotMatch(drum.svg.match(/<g class="m m-drum"[^]*?<\/g>/)[0], /class="bolt"/);
 });
+
+test("port collars carry an arrow pointing into the machine on inputs and out of it on outputs", () => {
+  const out = quiet(lineTour().step({ belt: "a->b", item: "1" }));
+  const arrows = [...out.svg.matchAll(/<path d="M([\d.]+) ([\d.]+)L([\d.]+) ([\d.]+)L[\d.]+ [\d.]+Z" class="collar-arrow"\/>/g)].map((m) => ({ tip: [+m[1], +m[2]], base: [+m[3], +m[4]] }));
+  assert.equal((out.svg.match(/class="collar"/g) ?? []).length, 4);
+  assert.equal(arrows.length, 4);
+  const box = out.svg.match(/data-machine="b" data-box="([\d.]+) [\d.]+ ([\d.]+)/);
+  const left = +box[1], right = left + +box[2];
+  const at = (x) => arrows.find((a) => Math.abs(a.tip[0] - x) < 6);
+  assert.ok(at(left).tip[0] > at(left).base[0], "the input arrow on the left side should point right, into b");
+  assert.ok(at(right).tip[0] > at(right).base[0], "the output arrow on the right side should point right, out of b");
+  assert.doesNotMatch(out.svg, /class="mouth"/);
+});
+
+test("tree and graph nodes are circles, and pointer frames take the shape of their target", () => {
+  const heap = quiet(factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 10 }).machine("h", { kind: "heap", at: [2, 1], label: "h", src: "a.js:1", cells: ["1", "2", "3"] }).machine("o", { kind: "dock", at: [16, 2], label: "o", external: true }).belt("h", "o").step({ belt: "h->o", item: "1" }));
+  assert.equal((heap.svg.match(/<circle [^>]*class="cell"/g) ?? []).length, 3);
+  const trie = quiet(factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 10 }).machine("t", { kind: "trie", at: [2, 1], label: "t", src: "a.js:1", nodes: [[-1, "·"], [0, "a"]], terminal: [1], pointers: { at: 0 } }).machine("o", { kind: "dock", at: [16, 2], label: "o", external: true }).belt("t", "o").step({ at: "t", pointers: { t: { at: 1 } } }));
+  assert.match(trie.svg, /<circle [^>]*class="ring2"/);
+  assert.match(trie.svg, /<circle [^>]*class="ptr-box"/);
+  const bt = quiet(factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 10 }).machine("b", { kind: "btree", at: [2, 1], label: "b", src: "a.js:1", keys: 2, leaves: 2, cells: ["5", "", "1", "3", "5", "7"], pointers: { at: 0 } }).machine("o", { kind: "dock", at: [20, 2], label: "o", external: true }).belt("b", "o").step({ at: "b", pointers: { b: { at: 1 } } }));
+  assert.match(bt.svg, /<rect [^>]*rx="4" class="ptr-box"/);
+});
+
+test("broadcast and merge are drawn as light junctions with no box or bolts", () => {
+  const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 40, rows: 14 })
+    .machine("f", { kind: "fanout", at: [4, 5], label: "fan", src: "a.js:1" })
+    .machine("a", { kind: "press", at: [12, 1], label: "a()", src: "a.js:2" })
+    .machine("b", { kind: "press", at: [12, 9], label: "b()", src: "a.js:3" })
+    .belt("f", "a", { out: "n", in: "w" }).belt("f", "b", { out: "s", in: "w" })
+    .step({ belt: ["f->a", "f->b"], item: ["x", "y"] });
+  const out = quiet(F);
+  const group = out.svg.match(/<g class="m m-fanout"[^>]*>(.*?)<\/g>/)[1];
+  assert.doesNotMatch(group, /class="body"|class="bolt"/);
+  assert.match(out.svg, /class="hub-ring"/);
+});

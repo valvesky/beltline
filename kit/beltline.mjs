@@ -47,7 +47,7 @@ function segsCross(a, b, c, d) {
 
 const DIRS = { e: [1, 0], w: [-1, 0], s: [0, 1], n: [0, -1] };
 const ITEM_KINDS = ["pill", "chip", "hex", "crate", "letter"];
-const BOLTED = new Set(["chain", "turnstile", "rack", "hashmap", "pigeonholes", "lru", "selector", "cutter", "press", "plate", "record", "splitter", "dock", "heap", "bits", "grid", "graph", "counter", "arena", "fanout", "merge", "btree", "trie", "page", "workers", "pool", "swapbuffer", "floormap"]);
+const BOLTED = new Set(["chain", "turnstile", "rack", "hashmap", "pigeonholes", "lru", "selector", "cutter", "press", "plate", "record", "splitter", "dock", "heap", "bits", "grid", "graph", "counter", "arena", "btree", "trie", "page", "workers", "pool", "swapbuffer", "floormap"].filter((k) => k !== "fanout" && k !== "merge"));
 
 function cellsRow(x, y, n, cw, ch, gap = 0) {
   return Array.from({ length: n }, (_, i) => ({ x: x + i * (cw + gap), y, w: cw, h: ch }));
@@ -63,6 +63,12 @@ const ringCell = (cx, cy, rIn, rOut, a0, a1, gap) => {
   const am = (a0 + a1) / 2, rm = (rIn + rOut) / 2, arc = rm * (s1 - s0);
   const w = Math.max(10, arc * 0.92), h = rOut - rIn - 4;
   return { path: `M${P(rOut, s0)}A${rOut} ${rOut} 0 ${large} 1 ${P(rOut, s1)}L${P(rIn, s1)}A${rIn} ${rIn} 0 ${large} 0 ${P(rIn, s0)}Z`, x: cx + Math.cos(am) * rm - w / 2, y: cy + Math.sin(am) * rm - h / 2, w, h };
+};
+
+const joinCircles = (a, b, ra, rb, cls) => {
+  const ax = a.x + a.w / 2, ay = a.y + a.h / 2, bx = b.x + b.w / 2, by = b.y + b.h / 2;
+  const L = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / L, uy = (by - ay) / L;
+  return `<path d="M${r1(ax + ux * ra)} ${r1(ay + uy * ra)}L${r1(bx - ux * rb)} ${r1(by - uy * rb)}" class="${cls}"/>`;
 };
 
 const MACHINES = {
@@ -255,12 +261,9 @@ const MACHINES = {
       const l = Math.floor(Math.log2(i + 1)), k = i + 1 - 2 ** l, count = 2 ** l;
       const span = ((levels[l] - top) / (base - top)) * (w - 20);
       const cx = ax + (k - (count - 1) / 2) * (span / count);
-      cells.push({ x: cx - nw / 2, y: levels[l] - nh / 2, w: nw, h: nh, round: true });
+      cells.push({ x: cx - 11, y: levels[l] - 11, w: 22, h: 22, circle: true });
     }
-    for (let i = 1; i < n; i++) {
-      const c = cells[i], pr = cells[Math.floor((i - 1) / 2)];
-      svg += `<path d="M${r1(pr.x + pr.w / 2)} ${r1(pr.y + pr.h)}L${r1(c.x + c.w / 2)} ${r1(c.y)}" class="seam"/>`;
-    }
+    for (let i = 1; i < n; i++) svg += joinCircles(cells[Math.floor((i - 1) / 2)], cells[i], 11, 11, "seam");
     return { w, h, body: { x, y, w, h }, svg, cells };
   },
   deque(m, x, y) {
@@ -299,11 +302,11 @@ const MACHINES = {
     });
     for (const [a, b] of m.edges ?? []) {
       const [x1, y1] = centers[a], [x2, y2] = centers[b];
-      const L = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / L, uy = (y2 - y1) / L, sa = 15, sb = m.directed ? 17 : 15;
+      const L = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / L, uy = (y2 - y1) / L, sa = 13, sb = m.directed ? 15 : 13;
       svg += `<path d="M${r1(x1 + ux * sa)} ${r1(y1 + uy * sa)}L${r1(x2 - ux * sb)} ${r1(y2 - uy * sb)}" class="link"${m.directed ? ` marker-end="url(#bl-arrow)"` : ""}/>`;
     }
-    const cells = centers.map(([px, py]) => ({ x: px - nw / 2, y: py - nh / 2, w: nw, h: nh, round: true }));
-    const pointer = { mode: "xy", at: (i) => ({ x: centers[i][0], y: centers[i][1], w: nw + 8, h: nh + 8 }) };
+    const cells = centers.map(([px, py]) => ({ x: px - 11, y: py - 11, w: 22, h: 22, circle: true }));
+    const pointer = { mode: "xy", at: (i) => ({ x: centers[i][0], y: centers[i][1], w: 30, h: 30, round: true }) };
     return { w, h, body: { x, y, w, h }, svg, cells, pointer };
   },
   counter(m, x, y) {
@@ -332,7 +335,7 @@ const MACHINES = {
   },
   fanout(m, x, y) {
     const w = m.w ?? 56, h = m.h ?? 64;
-    const svg = rect(x, y, w, h, "body", 4);
+    const svg = "";
     return { w, h, body: { x, y, w, h }, svg, cells: [], bus: { cx: x + w / 2, cy: y + h / 2 } };
   },
   btree(m, x, y) {
@@ -371,16 +374,14 @@ const MACHINES = {
     };
     walk(0, 0);
     const maxD = Math.max(...depth);
-    const w = pad * 2 + leafN * colW, h = pad * 2 + maxD * rowH + nh;
+    const w = pad * 2 + leafN * colW, h = pad * 2 + maxD * rowH + 20;
     let svg = rect(x, y, w, h, "body", 4) + rect(x + 4, y + 4, w - 8, h - 8, "well", 3);
-    const cells = nodes.map((_, i) => ({ x: x + pad + slot[i] * colW + (colW - nw) / 2, y: y + pad + depth[i] * rowH, w: nw, h: nh, round: true }));
+    const cells = nodes.map((_, i) => ({ x: x + pad + slot[i] * colW + (colW - 20) / 2, y: y + pad + depth[i] * rowH, w: 20, h: 20, circle: true }));
     nodes.forEach(([p], i) => {
-      if (p < 0) return;
-      const a = cells[p], b = cells[i];
-      svg += `<path d="M${r1(a.x + nw / 2)} ${r1(a.y + nh)}L${r1(b.x + nw / 2)} ${r1(b.y)}" class="seam"/>`;
+      if (p >= 0) svg += joinCircles(cells[p], cells[i], 10, 10, "seam");
     });
-    for (const t of m.terminal ?? []) svg += rect(cells[t].x - 3, cells[t].y - 3, nw + 6, nh + 6, "nodebox", 12);
-    const pointer = { mode: "xy", at: (i) => ({ x: cells[i].x + nw / 2, y: cells[i].y + nh / 2, w: nw + 8, h: nh + 8 }) };
+    for (const t of m.terminal ?? []) svg += `<circle cx="${r1(cells[t].x + 10)}" cy="${r1(cells[t].y + 10)}" r="13" class="ring2"/>`;
+    const pointer = { mode: "xy", at: (i) => ({ x: cells[i].x + 10, y: cells[i].y + 10, w: 34, h: 34, round: true }) };
     return { w, h, body: { x, y, w, h }, svg, cells, pointer, init: nodes.map(([, c]) => c) };
   },
   tape(m, x, y) {
@@ -1149,7 +1150,7 @@ export function factory(opts) {
           });
           continue;
         }
-        svgCells += c.path ? `<path d="${c.path}" class="cell"/>` : c.round ? rect(c.x, c.y, c.w, c.h, "cell", 9) : rect(c.x, c.y, c.w, c.h, "cell", 2);
+        svgCells += c.circle ? `<circle cx="${r1(c.x + c.w / 2)}" cy="${r1(c.y + c.h / 2)}" r="${r1(c.w / 2)}" class="cell"/>` : c.path ? `<path d="${c.path}" class="cell"/>` : c.round ? rect(c.x, c.y, c.w, c.h, "cell", 9) : rect(c.x, c.y, c.w, c.h, "cell", 2);
         const written = c.events.length > 0;
         if (written) {
           const evs = [...c.events].sort((a, b) => a.t - b.t);
@@ -1161,7 +1162,7 @@ export function factory(opts) {
             on = want;
           }
           const markAttr = `${on ? "" : ` opacity="0"`}${animAttr(f)}`;
-          svgCells += c.path ? `<path d="${c.path}" class="mark"${markAttr}/>` : rect(c.x, c.y, c.w, c.h, "mark", c.round ? 9 : 2, markAttr);
+          svgCells += c.circle ? `<circle cx="${r1(c.x + c.w / 2)}" cy="${r1(c.y + c.h / 2)}" r="${r1(c.w / 2)}" class="mark"${markAttr}/>` : c.path ? `<path d="${c.path}" class="mark"${markAttr}/>` : rect(c.x, c.y, c.w, c.h, "mark", c.round ? 9 : 2, markAttr);
         }
         const states = [{ t: 0, v: c.init }, ...c.events.sort((a, b) => a.t - b.t)];
         const anchor = g.valueAnchor === "start" ? "start" : "middle";
@@ -1228,7 +1229,7 @@ export function factory(opts) {
           svgCells += `<g class="ptr-g"${frames ? animAttr(frames) : ""}>${shape}</g>`;
         } else if (pg.mode === "xy") {
           const fp = pg.at(finalI);
-          const shape = rect(fp.x - fp.w / 2, fp.y - fp.h / 2, fp.w, fp.h, "ptr-box", fp.h / 2);
+          const shape = fp.round ? `<circle cx="${r1(fp.x)}" cy="${r1(fp.y)}" r="${r1(fp.w / 2)}" class="ptr-box"/>` : rect(fp.x - fp.w / 2, fp.y - fp.h / 2, fp.w, fp.h, "ptr-box", 4);
           let frames = null;
           if (evs.length) {
             frames = [];
@@ -1330,9 +1331,11 @@ export function factory(opts) {
         }
         if (e.under) svgUnderBelts += beltSvg;
         else svgBelts += beltSvg;
-        for (const [pt, side] of [[e.p0, e.outSide], [e.p1, e.inSide]]) {
+        for (const [pt, side, role] of [[e.p0, e.outSide, "out"], [e.p1, e.inSide, "in"]]) {
           const hz = side === "e" || side === "w";
-          svgPorts += rect(pt[0] - (hz ? 3 : 8), pt[1] - (hz ? 8 : 3), hz ? 6 : 16, hz ? 16 : 6, "mouth", 1.5);
+          const d = DIRS[side], f = role === "out" ? d : [-d[0], -d[1]], q = [-f[1], f[0]];
+          svgPorts += rect(pt[0] - (hz ? 4 : 9), pt[1] - (hz ? 9 : 4), hz ? 8 : 18, hz ? 18 : 8, "collar", 2.5);
+          svgPorts += `<path d="M${r1(pt[0] + f[0] * 3)} ${r1(pt[1] + f[1] * 3)}L${r1(pt[0] - f[0] * 2.4 + q[0] * 3.4)} ${r1(pt[1] - f[1] * 2.4 + q[1] * 3.4)}L${r1(pt[0] - f[0] * 2.4 - q[0] * 3.4)} ${r1(pt[1] - f[1] * 2.4 - q[1] * 3.4)}Z" class="collar-arrow"/>`;
         }
       } else {
         svgSignals += `<path d="${pathD(e.pts)}" class="sig" marker-end="url(#bl-arrow)" data-edge="${esc(e.id)}" data-from="${esc(e.from)}" data-to="${esc(e.to)}"/>`;
@@ -1355,7 +1358,10 @@ export function factory(opts) {
       if (room(under, hz ? cx : cy) < 22 || room(over, hz ? cy : cx) < 14) fail(`belt ${under.e.id} goes underground too close to a bend; give it at least a grid cell of straight belt on each side of ${over.e.id}`);
       const H = 17;
       svgGround += hz ? rect(cx - H + 4, cy - 8, 2 * H - 8, 16, "ground") : rect(cx - 8, cy - H + 4, 16, 2 * H - 8, "ground");
-      for (const sgn of [-1, 1]) svgGround += hz ? rect(cx + sgn * H - 4, cy - 8, 8, 16, "hood", 2) : rect(cx - 8, cy + sgn * H - 4, 16, 8, "hood", 2);
+      for (const sgn of [-1, 1]) {
+        svgGround += hz ? rect(cx + sgn * H - 4.5, cy - 9, 9, 18, "hood", 3) : rect(cx - 9, cy + sgn * H - 4.5, 18, 9, "hood", 3);
+        svgGround += hz ? `<path d="M${r1(cx + sgn * (H - 4.5))} ${r1(cy - 6)}v12" class="hood-mouth"/>` : `<path d="M${r1(cx - 6)} ${r1(cy + sgn * (H - 4.5))}h12" class="hood-mouth"/>`;
+      }
       let along = 0;
       for (let k = 1; k < under.e.pts.length; k++) {
         const p0 = under.e.pts[k - 1], p1 = under.e.pts[k];
@@ -1421,7 +1427,7 @@ export function factory(opts) {
         if (e.from === m.id && e.p0) svgMachines += channel(cx, cy, e.p0, e.outSide, "bus");
         if (e.to === m.id && e.p1) svgMachines += channel(cx, cy, e.p1, e.inSide, "bus");
       }
-      svgPorts += `<circle cx="${cx}" cy="${cy}" r="6" class="hub-ring"/><circle cx="${cx}" cy="${cy}" r="3.2" class="hub-dot"/>`;
+      svgPorts += `<circle cx="${cx}" cy="${cy}" r="10" class="hub-ring"/><circle cx="${cx}" cy="${cy}" r="4" class="hub-dot"/>`;
     }
     for (const m of machines.values()) {
       if (!m.geo.flap) continue;
@@ -1610,10 +1616,10 @@ export function factory(opts) {
 .lbl{font-size:11px;font-weight:600;fill:var(--mid);letter-spacing:.02em}
 .cond{font-size:10px;font-style:italic;fill:var(--mid)}.sig-t{font-size:10px;fill:var(--mid)}
 .belt-rail{fill:none;stroke:var(--lo);stroke-width:12;stroke-linejoin:round}.belt{fill:none;stroke:var(--belt);stroke-width:9;stroke-linejoin:round}.belt-roll{fill:none;stroke:var(--lo);stroke-width:7;stroke-dasharray:1.6 10.4;opacity:.75}.chev{fill:none;stroke:var(--lo);stroke-width:1.4}
-.mouth{fill:var(--slot)}.ring-well{fill:var(--cell);stroke:var(--lo);stroke-width:1}.shutter{fill:var(--cell);stroke:var(--lo);stroke-width:1}.slat-line{stroke:var(--lo);stroke-width:1}
+.mouth{fill:var(--slot)}.collar{fill:var(--cell);stroke:var(--ink);stroke-width:1.3}.collar-arrow{fill:var(--ink)}.ring2{fill:none;stroke:var(--ink);stroke-width:1.2}.ring-well{fill:var(--cell);stroke:var(--lo);stroke-width:1}.shutter{fill:var(--cell);stroke:var(--lo);stroke-width:1}.slat-line{stroke:var(--lo);stroke-width:1}
 .chan-rail{fill:none;stroke:var(--lo);stroke-width:9;stroke-linejoin:round;stroke-linecap:round}.chan{fill:none;stroke:var(--belt);stroke-width:5.5;stroke-linejoin:round;stroke-linecap:round}.hub-ring{fill:var(--body);stroke:var(--ink);stroke-width:1.4}
 .frame-bar{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}.bed{fill:var(--ink)}.head-tri{fill:var(--ink)}.hdr-f{fill:var(--cell)}.arrowhead{fill:var(--mid)}
-.tray{fill:var(--cell);stroke:var(--mid);stroke-width:1.2;stroke-linejoin:round}.pipe{stroke:var(--ink);stroke-width:4;stroke-linecap:round}.hub-cap{fill:var(--body);stroke:var(--ink);stroke-width:1.4}.ground{fill:var(--paper)}.hood{fill:var(--slot)}.bolt{fill:var(--mid)}.bevel{stroke:var(--hl);stroke-width:1.4;stroke-linecap:round;opacity:.8}
+.tray{fill:var(--cell);stroke:var(--mid);stroke-width:1.2;stroke-linejoin:round}.pipe{stroke:var(--ink);stroke-width:4;stroke-linecap:round}.hub-cap{fill:var(--body);stroke:var(--ink);stroke-width:1.4}.ground{fill:var(--paper)}.hood{fill:var(--body);stroke:var(--ink);stroke-width:1.3}.hood-mouth{stroke:var(--slot);stroke-width:3;stroke-linecap:round}.bolt{fill:var(--mid)}.bevel{stroke:var(--hl);stroke-width:1.4;stroke-linecap:round;opacity:.8}
 .slat{stroke:var(--accent-ink);stroke-width:1.2;opacity:.55}.flap-l{fill:none;stroke:var(--accent-ink);stroke-width:1.2;opacity:.6}.nodebox{fill:none;stroke:var(--ink);stroke-width:1.2}.tape{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.hole{fill:var(--paper);stroke:var(--lo);stroke-width:.6}
 .rail{stroke:var(--mid);stroke-width:2.2;stroke-linecap:round}.gear{fill:var(--body);stroke:var(--ink);stroke-width:1.4}.tooth{stroke:var(--ink);stroke-width:2}.hook{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round}
 .tap{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round}.drip{fill:var(--accent)}.bucket{fill:var(--body);stroke:var(--ink);stroke-width:1.4;stroke-linejoin:round}

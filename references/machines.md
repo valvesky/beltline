@@ -2,7 +2,7 @@
 
 Each canonical store gets exactly one machine. Its shape should show how the structure behaves (what goes in, where it waits, what comes out, what moves) before anyone reads the label. Open `examples/catalogue/beltline.svg` to see every kind drawn.
 
-Belts never just touch a machine: each one enters through a dark slot.
+Belts never just touch a machine. Each port has a collar with an arrow: ▶ pointing in on an input, pointing out on an output, so the direction of flow can be read at every machine. Tree and graph nodes are circles, and pointer frames take the shape of what they frame.
 
 ## The catalogue
 

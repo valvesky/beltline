@@ -44,7 +44,7 @@ Score each machine out of 10 and take away points for each fault:
 | Solid body | A filled body in the shared stroke weight, or a body that *is* the shape (ring, tube, funnel, bucket). Nothing floats loose. | thin frames, nodes or parts with no plate under them |
 | One motif | One visual idea names the kind at a glance: ring, pyramid, shutters, gears, hooks, guillotine. | generic boxes, two competing ideas, decoration with no meaning |
 | Cells belong | Values sit in slots that are part of the machine. Nothing crosses a value. | pill stickers on top of seams, pointers or arms running through values |
-| Clean joints | Belts enter through slots on the centre line; channels, arms and pointers keep clear of labels and of other machines. | stray strokes, scratches, lines that end in mid-air, labels drifting away from what they name |
+| Clean joints | Belts meet machines at port collars on the centre line, with arrows that agree with the flow; channels, arms and pointers keep clear of labels and of other machines. | stray strokes, scratches, lines that end in mid-air, labels drifting away from what they name |
 | Calm | Neutral tones plus the one accent, about three line weights, at least 3 px between elements, text at least 9 px at 1×. | clutter, cramped cells, tiny text, colour noise |
 | Composed at rest | The static end state looks finished: arms parked clear, pointers on their slots, nothing half-moved. | arms folded over belts or machines, flaps at odd angles |
 
