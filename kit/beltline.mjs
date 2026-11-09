@@ -800,7 +800,7 @@ export function factory(opts) {
       lx -= 16;
     }
 
-    const srcRows = [...machines.values()].filter((m) => m.src);
+    const srcRows = opts.sourceIndex ? [...machines.values()].filter((m) => m.src) : [];
     const colW = Math.ceil(Math.max(120, ...srcRows.map((m) => textW(`${m.label}  ${m.src}`, 10))) + 28);
     const idxCols = Math.max(1, Math.floor((W - 2 * G) / colW));
     const idxRowsN = Math.ceil(srcRows.length / idxCols);
@@ -812,13 +812,13 @@ export function factory(opts) {
       const row = `<text x="${cx}" y="${cy}" class="idx-l" text-anchor="start">${esc(m.label)}<tspan dx="8" class="idx-s">${esc(m.src)}</tspan></text>`;
       svgIndex += href ? `<a href="${esc(href)}">${row}</a>` : row;
     });
-    const gapY = idxTop + idxRowsN * 15 + 6;
+    const gapY = srcRows.length ? idxTop + idxRowsN * 15 + 6 : capY + 24;
     let svgGaps = "";
     gaps.forEach((g, i) => {
       if (`gap: ${g}`.length > LIMITS.captionChars) fail(`gap "${g.slice(0, 40)}…" is longer than ${LIMITS.captionChars - 5} chars; split it`);
       svgGaps += text(G, gapY + i * 14, `gap: ${g}`, "gap", "start");
     });
-    const H = Math.ceil((gapY + gaps.length * 14 + 10) / 2) * 2;
+    const H = Math.ceil((gaps.length || srcRows.length ? gapY + gaps.length * 14 + 10 : capY + 16) / 2) * 2;
 
     const tok = (t) => Object.entries(t).map(([k, v]) => `--${k}:${v}`).join(";");
     const style = `

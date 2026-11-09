@@ -15,6 +15,7 @@ const F = factory({
   baseUrl: "https://github.com/o/r/blob/2d5a1a4/",  // optional: turns sources into links
   speed: 170,                  // belt px per second (default 170)
   maxTexts: 140,               // clutter budget (default 140)
+  sourceIndex: false,          // opt-in footer table of station -> path:line; off by default, stations already link
 });
 ```
 

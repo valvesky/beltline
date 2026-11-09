@@ -19,7 +19,8 @@
 | Belts, with a condition label only on branch belts | "How it works" prose |
 | One caption line, changing per step | Per-step paragraphs |
 | The legend, made by the kit | Long lists of alternate paths: make them branches, or a second tour |
-| A compact source index, made by the kit | Coverage notes: the ledger goes into `<metadata>`, gaps into one `F.gap()` line each |
+| Source links on the stations themselves | A function-to-line table: the stations already link to their lines |
+| One `F.gap()` line for each real gap | Coverage notes: the ledger goes into `<metadata>` |
 
 **Text budget:** the kit and `check.mjs` fail above 140 `<text>` elements visible in the static end state. Moving items, earlier captions and earlier cell values are hidden at rest and do not count. A good Line tour shows 40–90; a Plant tour shows 60–120.
 

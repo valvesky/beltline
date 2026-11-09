@@ -12,7 +12,7 @@ A Beltline tour lets a reader watch one concrete input travel through a program 
 **The one idea: the machine is the explanation.** The reader should understand a structure from its shape and its motion, not from text next to it. A ring buffer is a drum whose head arm turns. A stack is a spring tube that fills from the bottom. A tokenizer is a cutter. When a station needs a paragraph to explain it, the drawing has failed.
 
 The skill fails in two ways:
-- **Dashboard.** Every station is a text panel of fields, code and notes, and the source index and alternate paths fill half the canvas. This tour is correct but unreadable.
+- **Dashboard.** Every station is a text panel of fields, code and notes, and long tables and alternate paths fill half the canvas. This tour is correct but unreadable.
 - **Boxes and arrows.** Identical labelled rectangles, so nothing shows what kind of structure each one is.
 
 The kit in `kit/beltline.mjs` prevents both. The agent decides **what** the machines are and **where** they sit. The kit draws, routes, animates, themes and audits them.
@@ -79,7 +79,7 @@ Machines, belts and signals come first. Steps come after.
 
 Each step is one move along a belt, or one machine at work, plus its writes, pointer moves and a one-line caption with its `src`. Values are what the code really holds at that moment.
 
-The kit derives all timing, keyframes, highlights, the caption sequence, the theme, the reduced-motion handling, the legend and the source index. Never hand-write keyframes.
+The kit derives all timing, keyframes, highlights, the caption sequence, the theme, the reduced-motion handling, and the legend. Never hand-write keyframes.
 
 ### 5. Build, check and look
 
@@ -122,7 +122,7 @@ After delivering, offer one refactor or follow-up only when a concrete one exist
   - Each machine has one label of 28 characters or fewer.
   - Cell values are 14 characters or fewer. Items on a belt are 16 characters or fewer.
   - Captions are one line.
-  - No paragraphs, code excerpts or field dumps on the canvas. Detail goes in the caption, the source index or the user-facing summary.
+  - No paragraphs, code excerpts or field dumps on the canvas. Detail goes in the caption or the user-facing summary. Sources live on the stations themselves as links (`data-src`, and an anchor when `baseUrl` is set), not as a table on the canvas.
 - **Structure:**
   - Every store has exactly one machine.
   - Every belt runs from a real producer to a real consumer.
