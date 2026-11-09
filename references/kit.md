@@ -15,6 +15,7 @@ const F = factory({
   baseUrl: "https://github.com/o/r/blob/2d5a1a4/",  // optional: turns sources into links
   speed: 170,                  // belt px per second (default 170)
   maxTexts: 140,               // clutter budget (default 140)
+  inserters: true,             // arms on belts that feed or empty a store; `arm: false` on a single belt
   sourceIndex: false,          // opt-in footer table of station -> path:line; off by default, stations already link
 });
 ```
@@ -25,7 +26,7 @@ const F = factory({
 F.machine(id, { kind, at: [col, row], label, src: "path:line", symbol?, cells?, pointers?, ...kindOptions })
 ```
 
-- `kind`: one of `rack drum hopper stack pigeonholes tower selector cutter press plate chain record turnstile splitter dock`. See `machines.md`.
+- `kind`: one of `rack drum hopper stack hashmap lru tower selector cutter press plate chain record turnstile splitter dock`. See `machines.md`. (`pigeonholes` is an old alias for `hashmap`.)
 - `label`: 28 characters or fewer, normally the symbol (`toRpn()`, `tokens[]`, `CircBuffer`).
 - `src`: required unless `external: true`. `symbol` is optional; `check-sources` looks for it near the line.
 - `cells`: the initial values. `""` is empty.
@@ -40,14 +41,15 @@ Options for each kind:
 | `rack` | `cellW` (default 30), `more: true` to draw a trailing ellipsis |
 | `drum` | `radius` (default 46, or 56 above 6 sectors), `cellW` (default 24). Pointers are named arms whose labels stay upright. |
 | `hopper` | `cellW` (default 34) |
-| `pigeonholes` | `cols` (default 2), `cellW` (default 52), `evict` |
+| `hashmap` | `cellW` (default 56), `chain: { bucket: count }` adds collision cells after the buckets, `chainW`, `evict` |
+| `lru` | `buckets` (default 4), `cellW` (default 50), `nodeW` (default 34), `mru`/`lruLabel` to rename the ends. Cells are the buckets, then the nodes from MRU to LRU. |
 | `selector` | `states: [names]`, `cellW` for the registers |
 | `cutter`, `press` | `cellW` for register cells |
 | `plate` | `cols`, `rows`, `pixel` |
-| `chain` | `cellW` |
+| `chain` | `cellW`, `doubly` |
 | `record` | `cellW` (default 92) |
 | `dock` | `w`, `h`, `cellW`, `external` |
-| `splitter` | `h` |
+| `splitter` | `w`, `h`. The flap is drawn and animated from the steps that leave the splitter. |
 
 ## Edges
 

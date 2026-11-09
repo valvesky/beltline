@@ -72,7 +72,7 @@ blockquote p{font:400 30px/1.25 var(--serif);margin:0 0 6px;letter-spacing:-.01e
 blockquote cite{font-style:normal;font-size:12.5px;color:var(--muted)}
 
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px 12px;margin:34px 0 30px}
-.grid div.cell{display:flex;flex-direction:column;align-items:center;text-align:center}
+.grid div.cell{display:flex;flex-direction:column;align-items:center;text-align:center}.grid div.span2{grid-column:span 2}
 .grid .box{height:88px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
 .grid b{font-size:13px;font-weight:500;line-height:1.35}
 .grid small{font-size:12.5px;color:var(--muted);line-height:1.35}
@@ -131,7 +131,7 @@ footer{margin-top:80px;padding-top:18px;border-top:1px solid var(--rule);font-si
 }
 @media (max-width:560px){
   .strip .crop:nth-child(n+4){display:none}
-  .grid{grid-template-columns:repeat(2,1fr)}
+  .grid{grid-template-columns:repeat(2,1fr);grid-auto-flow:dense}
   .prompts div,.words div{grid-template-columns:1fr;gap:4px}
   blockquote p{font-size:25px}
 }
@@ -167,13 +167,13 @@ footer{margin-top:80px;padding-top:18px;border-top:1px solid var(--rule);font-si
   </div>
   <p class="tag">Point Claude at a program, and it draws <em class="s">the factory</em> that runs it.</p>
   <div class="strip" aria-hidden="true">
-    <div class="crop" style="--x:222;--y:62;--w:128;--h:124"><img src="tours/catalogue.svg" alt=""></div>
-    <div class="crop" style="--x:508;--y:82;--w:88;--h:94"><img src="tours/catalogue.svg" alt=""></div>
-    <div class="crop" style="--x:636;--y:104;--w:140;--h:66"><img src="tours/catalogue.svg" alt=""></div>
-    <div class="crop" style="--x:516;--y:272;--w:116;--h:70"><img src="tours/catalogue.svg" alt=""></div>
-    <div class="crop" style="--x:16;--y:272;--w:156;--h:70"><img src="tours/catalogue.svg" alt=""></div>
+    <div class="crop" style="--x:254;--y:90;--w:112;--h:128;--s:0.72"><img src="tours/catalogue.svg" alt=""></div>
+    <div class="crop" style="--x:736;--y:106;--w:154;--h:112;--s:0.82"><img src="tours/catalogue.svg" alt=""></div>
+    <div class="crop" style="--x:424;--y:466;--w:72;--h:76;--s:1.00"><img src="tours/catalogue.svg" alt=""></div>
+    <div class="crop" style="--x:18;--y:298;--w:268;--h:90;--s:0.52"><img src="tours/catalogue.svg" alt=""></div>
+    <div class="crop" style="--x:760;--y:418;--w:108;--h:74;--s:1.00"><img src="tours/catalogue.svg" alt=""></div>
   </div>
-  <div class="meta"><span>/beltline</span><span>16 machines</span><span>60 tests</span><span>by Vasco</span><span>9 November 2026</span><span><a href="#install">Install ↓</a></span></div>
+  <div class="meta"><span>/beltline</span><span>16 machines</span><span>64 tests</span><span>by Vasco</span><span>9 November 2026</span><span><a href="#install">Install ↓</a></span></div>
 </header>
 
 <div class="lede">
@@ -196,20 +196,23 @@ footer{margin-top:80px;padding-top:18px;border-top:1px solid var(--rule);font-si
   <p>A reader should know what a structure is from its shape and its motion, before reading its label. A ring buffer is a drum whose arms turn. A stack is a spring tube that fills from the bottom. A tokenizer is a cutter. If a station needs a paragraph next to it, the drawing has failed.</p>
   <div class="n"><p>It fails in two ways, and the first version of this skill did both. <strong>The dashboard:</strong> every station a panel of fields, code and notes, correct but unreadable. <strong>Boxes and arrows:</strong> identical labelled rectangles, so nothing shows what kind of structure each one is. The fix for both is the same: a fixed catalogue of small machines, and a kit that refuses to place text the reader doesn’t need.<sup>2</sup></p><aside><b>2</b>The kit fails the build above 140 visible pieces of text. A good tour shows between 40 and 120.</aside></div>
   <div class="grid">
-    <div class="cell"><div class="box"><div class="crop" style="--x:16;--y:108;--w:176;--h:66;--s:.55"><img src="tours/catalogue.svg" alt=""></div></div><b>Rack</b><small>Array, slice, buffer</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:222;--y:62;--w:128;--h:124;--s:.6"><img src="tours/catalogue.svg" alt=""></div></div><b>Drum</b><small>Ring buffer</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:392;--y:82;--w:94;--h:104;--s:.75"><img src="tours/catalogue.svg" alt=""></div></div><b>Hopper</b><small>Queue, channel</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:508;--y:82;--w:88;--h:94;--s:.8"><img src="tours/catalogue.svg" alt=""></div></div><b>Spring tube</b><small>Stack</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:636;--y:104;--w:140;--h:66;--s:.68"><img src="tours/catalogue.svg" alt=""></div></div><b>Pigeonholes</b><small>Hash map, cache</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:780;--y:104;--w:162;--h:66;--s:.6"><img src="tours/catalogue.svg" alt=""></div></div><b>Pigeonholes + chute</b><small>LRU cache</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:952;--y:82;--w:158;--h:110;--s:.6"><img src="tours/catalogue.svg" alt=""></div></div><b>Sorting tower</b><small>Tree, trie</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:16;--y:272;--w:156;--h:70;--s:.62"><img src="tours/catalogue.svg" alt=""></div></div><b>Selector</b><small>State machine</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:228;--y:272;--w:100;--h:90;--s:.82"><img src="tours/catalogue.svg" alt=""></div></div><b>Cutter</b><small>Tokenizer, parser</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:516;--y:272;--w:116;--h:70;--s:.75"><img src="tours/catalogue.svg" alt=""></div></div><b>Pixel plate</b><small>Bitmap, atlas</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:856;--y:272;--w:118;--h:79;--s:.75"><img src="tours/catalogue.svg" alt=""></div></div><b>Cabinet</b><small>Struct, registers</small></div>
-    <div class="cell"><div class="box"><div class="crop" style="--x:996;--y:296;--w:72;--h:57;--s:1"><img src="tours/catalogue.svg" alt=""></div></div><b>Turnstile</b><small>Lock, mutex</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:18;--y:130;--w:174;--h:67;--s:0.70"><img src="tours/catalogue.svg" alt=""></div></div><b>Rack</b><small>Array, slice, buffer</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:254;--y:90;--w:112;--h:128;--s:0.67"><img src="tours/catalogue.svg" alt=""></div></div><b>Drum</b><small>Ring buffer</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:448;--y:106;--w:78;--h:104;--s:0.83"><img src="tours/catalogue.svg" alt=""></div></div><b>Hopper</b><small>Queue, channel</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:592;--y:106;--w:64;--h:94;--s:0.91"><img src="tours/catalogue.svg" alt=""></div></div><b>Spring tube</b><small>Stack</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:736;--y:106;--w:154;--h:112;--s:0.77"><img src="tours/catalogue.svg" alt=""></div></div><b>Bucket rack</b><small>Hash map</small></div>
+    <div class="cell span2"><div class="box"><div class="crop" style="--x:18;--y:298;--w:268;--h:90;--s:0.93"><img src="tours/catalogue.svg" alt=""></div></div><b>Index + list</b><small>LRU cache</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:376;--y:298;--w:158;--h:110;--s:0.77"><img src="tours/catalogue.svg" alt=""></div></div><b>Sorting tower</b><small>Tree, trie</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:616;--y:322;--w:142;--h:42;--s:0.86"><img src="tours/catalogue.svg" alt=""></div></div><b>Linked chain</b><small>Doubly linked list</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:16;--y:466;--w:156;--h:72;--s:0.78"><img src="tours/catalogue.svg" alt=""></div></div><b>Selector</b><small>State machine</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:256;--y:466;--w:92;--h:94;--s:0.91"><img src="tours/catalogue.svg" alt=""></div></div><b>Cutter</b><small>Tokenizer, parser</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:424;--y:466;--w:72;--h:76;--s:1.00"><img src="tours/catalogue.svg" alt=""></div></div><b>Diverter</b><small>Branch, dispatch</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:592;--y:418;--w:92;--h:68;--s:1.00"><img src="tours/catalogue.svg" alt=""></div></div><b>Press</b><small>Transform</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:760;--y:418;--w:108;--h:74;--s:1.00"><img src="tours/catalogue.svg" alt=""></div></div><b>Pixel plate</b><small>Bitmap, atlas</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:856;--y:298;--w:118;--h:82;--s:1.00"><img src="tours/catalogue.svg" alt=""></div></div><b>Cabinet</b><small>Struct, registers</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:616;--y:538;--w:64;--h:60;--s:1.00"><img src="tours/catalogue.svg" alt=""></div></div><b>Turnstile</b><small>Lock, mutex</small></div>
   </div>
-  <p>Sixteen kinds in all, with a press for plain transforms, a chain for linked lists, a diverter for branches and a loading dock for anything outside the program. They are all in <a href="tours/catalogue.svg">the catalogue</a>.</p>
+  <p>Belts never just touch a machine. Each one enters through a slot, and wherever a belt feeds or empties a store, an inserter arm swings the item across, the way it would on a factory floor. All of them move in <a href="tours/catalogue.svg">the catalogue</a>.</p>
 </section>
 
 <section id="prompt">

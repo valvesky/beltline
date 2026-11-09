@@ -135,3 +135,44 @@ test("planted fault fails the audit: label pushed into the header", () => {
   const out = quiet(F);
   assert.match(out.problems.join("\n"), /off the floor/);
 });
+
+const tour = () =>
+  factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 40, rows: 14 })
+    .machine("src", { kind: "press", at: [1, 4], label: "in()", src: "a.js:1" })
+    .machine("sp", { kind: "splitter", at: [8, 4], label: "branch", src: "a.js:2" })
+    .machine("hi", { kind: "hashmap", at: [16, 1], label: "map", src: "a.js:3", cells: ["", "", "", ""], pointers: { h: 0 } })
+    .machine("lo", { kind: "lru", at: [16, 8], label: "lru", src: "a.js:4", buckets: 2, cells: ["a→0", "", "a", "b"] })
+    .belt("src", "sp")
+    .belt("sp", "hi", { out: "n", in: "w", label: "yes" })
+    .belt("sp", "lo", { out: "s", in: "w", label: "no" });
+
+test("store belts get inserters that swing when an item arrives", () => {
+  const out = quiet(tour().step({ belt: "src->sp", item: "1" }).step({ belt: "sp->hi", item: "k", pointers: { hi: { h: 2 } }, writes: { hi: [[2, "k:1"]] } }));
+  assert.deepEqual(out.problems, []);
+  assert.equal((out.svg.match(/class="ins-arm"/g) ?? []).length, 2);
+  assert.match(out.svg, /rotate\((-)?180deg\)/);
+});
+
+test("the splitter flap turns to each route an item takes", () => {
+  const out = quiet(tour().step({ belt: "sp->hi", item: "a" }).step({ belt: "sp->lo", item: "b" }));
+  assert.deepEqual(out.problems, []);
+  const flap = out.svg.match(/<g class="rot" style="transform-origin:[^"]+" id="(bl-a\d+)"><path d="[^"]+" class="flap"/);
+  assert.ok(flap, "no animated flap");
+  const kf = out.svg.match(new RegExp(`#${flap[1]}\\{animation-name:(k\\d+)\\}`))[1];
+  const body = out.svg.match(new RegExp(`@keyframes ${kf}\\{([^\\n]+)\\}`))[1];
+  assert.ok(new Set(body.match(/rotate\(-?[\d.]+deg\)/g)).size >= 2, `flap never turns: ${body}`);
+});
+
+test("hash map pointers frame the bucket index and the LRU shows both ends", () => {
+  const out = quiet(tour().step({ belt: "sp->hi", item: "a", pointers: { hi: { h: 3 } } }));
+  assert.match(out.svg, /class="ptr-box"/);
+  assert.match(out.svg, />MRU</);
+  assert.match(out.svg, />LRU</);
+  assert.ok((out.svg.match(/class="idx-n"/g) ?? []).length >= 6);
+});
+
+test("planted fault fails the audit: a label in an inserter's sweep", () => {
+  const F = tour().machine("x", { kind: "record", at: [13, 5], label: "a label right here", src: "a.js:9", cells: ["v 1"], labelSide: "e" }).belt("x", "lo", { out: "s", in: "n" }).step({ belt: "sp->hi", item: "a" }).step({ belt: "sp->lo", item: "b" });
+  const out = quiet(F);
+  assert.match(out.problems.join("\n"), /inserter|through text|passes through|cross|closer/);
+});

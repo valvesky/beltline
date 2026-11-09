@@ -9,6 +9,13 @@
 - Examples: `calc` (the small-tour bar), `velocitty` (a real terminal emulator, the Plant-tour bar, linked to its source at 2d5a1a4) and `catalogue`.
 - Evals with a three-axis rubric (correctness, visual design, visual clarity) and two fixture repos.
 
+### Changed (catalogue, from owner review)
+- Belts enter machines through visible slots, and stores are loaded and unloaded by inserter arms that swing when an item arrives or leaves.
+- The branch is a real diverter: one inlet, an outlet per route, and a flap that swings to the route each item takes.
+- New `hashmap` (numbered bucket rack, `h` frame, collision chains) replaces the cubby wall; `pigeonholes` stays as an alias.
+- New `lru`: a hash index next to a doubly linked MRU ⇄ LRU list with an eviction chute, matching the common implementation. `chain` gains `doubly`.
+- Machines carry `data-box`, and the docs crops are generated from it.
+
 ### Fixed (from the first real run, on velocitty, and an independent review)
 - Routes could get a diagonal segment after simplification; paired belts could collapse onto one line.
 - Belts and signals now share port allocation; signals are audited for crossings and text.

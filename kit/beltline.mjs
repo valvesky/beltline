@@ -7,11 +7,11 @@ const LIMITS = { texts: 140, itemChars: 16, labelChars: 28, valueChars: 14, capt
 export const THEME = {
   light: {
     paper: "#f3f1ea", dot: "#d9d5c9", ink: "#2a2925", mid: "#76726a", lo: "#b8b3a6",
-    body: "#e6e2d7", cell: "#fbfaf6", belt: "#d3cebf", accent: "#d9731a", "accent-ink": "#ffffff", "accent-soft": "#f6dcc2",
+    body: "#e6e2d7", cell: "#fbfaf6", belt: "#d3cebf", accent: "#d9731a", "accent-ink": "#ffffff", "accent-soft": "#f6dcc2", slot: "#3a3732",
   },
   dark: {
     paper: "#191917", dot: "#2b2a26", ink: "#e7e3d8", mid: "#9b968a", lo: "#5b5850",
-    body: "#262521", cell: "#1e1d1a", belt: "#35332d", accent: "#f0943c", "accent-ink": "#1a1208", "accent-soft": "#4a3220",
+    body: "#262521", cell: "#1e1d1a", belt: "#35332d", accent: "#f0943c", "accent-ink": "#1a1208", "accent-soft": "#4a3220", slot: "#0c0c0b",
   },
 };
 
@@ -97,13 +97,53 @@ const MACHINES = {
     svg += `<path d="${z}L${x + w - 8} ${y + h - 3}" class="seam"/>`;
     return { w, h, body: { x, y, w, h }, svg, cells };
   },
-  pigeonholes(m, x, y) {
-    const cols = m.cols ?? 2, n = m.cells.length, rows = Math.ceil(n / cols), cw = m.cellW ?? 52, ch = 22, pad = 6;
-    const w = cols * cw + pad * 2 + (m.evict ? 22 : 0), h = rows * ch + pad * 2;
-    const cells = Array.from({ length: n }, (_, i) => ({ x: x + pad + (i % cols) * cw, y: y + pad + Math.floor(i / cols) * ch, w: cw, h: ch }));
-    let svg = rect(x, y, w, h, "body", 3);
+  hashmap(m, x, y) {
+    const chain = m.chain ?? {}, ch = 22, cw = m.cellW ?? 56, idxW = 16, pad = 6, linkCw = m.chainW ?? 40;
+    const chained = Object.values(chain).reduce((a, b) => a + b, 0);
+    const n = m.cells.length - chained;
+    const maxChain = Math.max(0, ...Object.values(chain));
+    const w = pad + idxW + cw + (maxChain ? maxChain * (linkCw + 14) : 0) + pad + (m.evict ? 22 : 0), h = n * ch + pad * 2;
+    let svg = rect(x, y, w, h, "body", 3) + rect(x + pad, y + pad, idxW, n * ch, "idx-rail", 2);
+    const cells = [], idx = [];
+    for (let i = 0; i < n; i++) {
+      cells.push({ x: x + pad + idxW, y: y + pad + i * ch, w: cw, h: ch });
+      idx.push({ x: x + pad + idxW / 2, y: y + pad + i * ch + ch / 2, s: String(i) });
+    }
+    for (const b of Object.keys(chain).map(Number).sort((a, c) => a - c)) {
+      let prev = cells[b];
+      for (let k = 0; k < chain[b]; k++) {
+        const c = { x: prev.x + prev.w + 14, y: prev.y + 3, w: linkCw, h: ch - 6, round: true };
+        svg += `<path d="M${r1(prev.x + prev.w)} ${r1(prev.y + prev.h / 2)}H${r1(c.x - 2)}" class="link" marker-end="url(#bl-arrow)"/>`;
+        cells.push(c);
+        prev = c;
+      }
+    }
     if (m.evict) svg += `<path d="M${x + w - 18} ${y + h - 6}l14 10M${x + w - 18} ${y + h - 14}l14 10" class="seam"/>`;
-    return { w, h, body: { x, y, w, h }, svg, cells };
+    const pointer = { mode: "y", at: (i) => ({ x: x + pad - 1, y: y + pad + i * ch + ch / 2, w: idxW + 2, h: ch - 2 }) };
+    return { w, h, body: { x, y, w, h }, svg, cells, pointer, idx };
+  },
+  lru(m, x, y) {
+    const nb = m.buckets ?? 4, nn = m.cells.length - nb, ch = 22, cw = m.cellW ?? 50, idxW = 16, pad = 6, nw = m.nodeW ?? 34, gap = 18;
+    const listX = x + pad + idxW + cw + 22;
+    const w = listX - x + nn * nw + (nn - 1) * gap + pad + 18, h = Math.max(nb * ch + pad * 2, 64);
+    let svg = rect(x, y, w, h, "body", 3) + rect(x + pad, y + pad, idxW, nb * ch, "idx-rail", 2);
+    const cells = [], idx = [];
+    for (let i = 0; i < nb; i++) {
+      cells.push({ x: x + pad + idxW, y: y + pad + i * ch, w: cw, h: ch });
+      idx.push({ x: x + pad + idxW / 2, y: y + pad + i * ch + ch / 2, s: String(i) });
+    }
+    const ly = y + h / 2 - 11;
+    for (let i = 0; i < nn; i++) cells.push({ x: listX + i * (nw + gap), y: ly, w: nw, h: 22, round: true });
+    for (let i = 0; i < nn - 1; i++) {
+      const a = cells[nb + i], b = cells[nb + i + 1];
+      svg += `<path d="M${r1(a.x + a.w)} ${r1(ly + 7)}H${r1(b.x - 2)}" class="link" marker-end="url(#bl-arrow)"/><path d="M${r1(b.x)} ${r1(ly + 15)}H${r1(a.x + a.w + 2)}" class="link" marker-end="url(#bl-arrow)"/>`;
+    }
+    svg += `<path d="M${r1(listX - 14)} ${y + 6}V${y + h - 6}" class="seam"/>`;
+    const last = cells.at(-1);
+    svg += `<path d="M${r1(last.x + last.w + 4)} ${r1(ly + 22)}l10 ${r1(y + h - ly - 22)}M${r1(last.x + last.w - 6)} ${r1(ly + 24)}l10 ${r1(y + h - ly - 24)}" class="seam"/>`;
+    const ends = nn ? [{ x: cells[nb].x + nw / 2, y: ly - 7, s: m.mru ?? "MRU" }, { x: last.x + nw / 2, y: ly - 7, s: m.lruLabel ?? "LRU" }] : [];
+    const pointer = { mode: "y", at: (i) => ({ x: x + pad - 1, y: y + pad + i * ch + ch / 2, w: idxW + 2, h: ch - 2 }) };
+    return { w, h, body: { x, y, w, h }, svg, cells, pointer, idx, ends };
   },
   tower(m, x, y) {
     const n = Math.min(m.cells.length, 7), nw = 28, nh = 18, lvGap = 16, w = 4 * (nw + 6) + 6;
@@ -165,12 +205,13 @@ const MACHINES = {
     return { w, h, body: { x, y, w, h }, svg, cells };
   },
   chain(m, x, y) {
-    const n = m.cells.length, cw = m.cellW ?? 30, ch = 22, gap = 14;
+    const n = m.cells.length, cw = m.cellW ?? 30, ch = 22, gap = m.doubly ? 18 : 14;
     const cells = cellsRow(x, y + 4, n, cw, ch, gap);
     let svg = "";
     for (let i = 0; i < n - 1; i++) {
       const a = cells[i], b = cells[i + 1];
-      svg += `<path d="M${r1(a.x + a.w)} ${r1(a.y + ch / 2)}H${r1(b.x - 2)}" class="link" marker-end="url(#bl-arrow)"/>`;
+      if (m.doubly) svg += `<path d="M${r1(a.x + a.w)} ${r1(a.y + 7)}H${r1(b.x - 2)}" class="link" marker-end="url(#bl-arrow)"/><path d="M${r1(b.x)} ${r1(a.y + 15)}H${r1(a.x + a.w + 2)}" class="link" marker-end="url(#bl-arrow)"/>`;
+      else svg += `<path d="M${r1(a.x + a.w)} ${r1(a.y + ch / 2)}H${r1(b.x - 2)}" class="link" marker-end="url(#bl-arrow)"/>`;
     }
     const w = n * cw + (n - 1) * gap, h = ch + 8;
     return { w, h, body: { x, y, w, h }, svg, cells, round: true };
@@ -190,11 +231,9 @@ const MACHINES = {
     return { w: 2 * R + 8, h: 2 * R + 8, body: { x, y, w: 2 * R + 8, h: 2 * R + 8 }, svg, cells: [], pointer };
   },
   splitter(m, x, y) {
-    const w = 34, h = m.h ?? 58;
-    let svg = rect(x, y, w, h, "body", 3);
-    svg += `<path d="M${x} ${y + h / 2}H${x + 12}M${x + 12} ${y + h / 2}L${x + w - 6} ${y + 10}M${x + 12} ${y + h / 2}L${x + w - 6} ${y + h - 10}" class="chute"/>`;
-    svg += `<path d="M${x + 12} ${y + h / 2}L${x + w - 10} ${y + h / 2 - 8}" class="flap"/><circle cx="${x + 12}" cy="${y + h / 2}" r="2.5" class="pivot"/>`;
-    return { w, h, body: { x, y, w, h }, svg, cells: [] };
+    const w = m.w ?? 56, h = m.h ?? 64;
+    const svg = rect(x, y, w, h, "body", 4) + rect(x + 4, y + 4, w - 8, h - 8, "well", 3);
+    return { w, h, body: { x, y, w, h }, svg, cells: [], flap: { cx: x + w / 2, cy: y + h / 2 } };
   },
   dock(m, x, y) {
     const n = m.cells.length, cw = m.cellW ?? 46;
@@ -205,7 +244,9 @@ const MACHINES = {
   },
 };
 
+MACHINES.pigeonholes = MACHINES.hashmap;
 export const KINDS = Object.keys(MACHINES);
+const STORES = new Set(["rack", "drum", "hopper", "stack", "pigeonholes", "hashmap", "lru", "tower", "chain", "record", "plate"]);
 
 export function factory(opts) {
   const G = opts.grid ?? 24;
@@ -342,8 +383,12 @@ export function factory(opts) {
     for (const e of edges) {
       if (!e.p0 || !e.p1) continue;
       const d0 = DIRS[e.outSide], d1 = DIRS[e.inSide];
-      const s0 = [e.p0[0] + d0[0] * G * 0.5, e.p0[1] + d0[1] * G * 0.5];
-      const s1 = [e.p1[0] + d1[0] * G * 0.5, e.p1[1] + d1[1] * G * 0.5];
+      const useArms = opts.inserters !== false && e.kind === "belt" && e.arm !== false;
+      e.armOut = useArms && STORES.has(machines.get(e.from).kind);
+      e.armIn = useArms && STORES.has(machines.get(e.to).kind);
+      const k0 = e.armOut ? 1 : 0.5, k1 = e.armIn ? 1 : 0.5;
+      const s0 = [e.p0[0] + d0[0] * G * k0, e.p0[1] + d0[1] * G * k0];
+      const s1 = [e.p1[0] + d1[0] * G * k1, e.p1[1] + d1[1] * G * k1];
       const via = (e.via ?? []).map(([c, r]) => at(c, r));
       const pts = [e.p0, s0];
       let axis = d0[0] ? "h" : "v";
@@ -533,7 +578,7 @@ export function factory(opts) {
     const boxes = [];
     const texts = [];
     const addText = (box, owner, what) => texts.push({ ...box, owner, what });
-    let svgUnder = "", svgMachines = "", svgCells = "", svgBelts = "", svgSignals = "", svgLabels = "", svgItems = "", svgHot = "";
+    let svgUnder = "", svgPorts = "", svgArms = "", svgMachines = "", svgCells = "", svgBelts = "", svgSignals = "", svgLabels = "", svgItems = "", svgHot = "";
 
     for (const m of machines.values()) {
       const g = m.geo;
@@ -542,8 +587,13 @@ export function factory(opts) {
       if (String(m.label ?? "").length > LIMITS.labelChars) fail(`machine ${m.id}: label "${m.label}" is longer than ${LIMITS.labelChars} chars`);
       if (!m.src && !m.external) fail(`machine ${m.id}: needs src "path:line" (or external: true for a boundary)`);
       const href = m.src && opts.baseUrl ? `${opts.baseUrl}${m.src.replace(/:(\d+)$/, "#L$1")}` : null;
-      const inner = g.svg;
-      svgMachines += `<g class="m m-${m.kind}" data-machine="${esc(m.id)}"${m.src ? ` data-src="${esc(m.src)}"` : ""}${m.symbol ? ` data-symbol="${esc(m.symbol)}"` : ""}>${href ? `<a href="${esc(href)}">` : ""}${inner}${href ? "</a>" : ""}</g>`;
+      let inner = g.svg;
+      for (const d of g.idx ?? []) inner += text(d.x, d.y, d.s, "idx-n", "middle", ` dominant-baseline="central"`);
+      for (const d of g.ends ?? []) {
+        inner += text(d.x, d.y, d.s, "end-t", "middle");
+        addText({ x: d.x - textW(d.s, 8) / 2, y: d.y - 8, w: textW(d.s, 8), h: 9 }, `${m.id}.end`, `${m.id} ${d.s} label`);
+      }
+      svgMachines += `<g class="m m-${m.kind}" data-machine="${esc(m.id)}" data-box="${r1(g.body.x)} ${r1(g.body.y)} ${r1(g.body.w)} ${r1(g.h)}"${m.src ? ` data-src="${esc(m.src)}"` : ""}${m.symbol ? ` data-symbol="${esc(m.symbol)}"` : ""}>${href ? `<a href="${esc(href)}">` : ""}${inner}${href ? "</a>" : ""}</g>`;
       const busy = { s: 0, n: 0, e: 0, w: 0 };
       for (const e of [...belts, ...signals]) {
         if (e.from === m.id && e.outSide) busy[e.outSide]++;
@@ -638,7 +688,19 @@ export function factory(opts) {
         const evs = p.events.sort((a, b) => a.t - b.t);
         const finalI = evs.length ? evs.at(-1).i : p.init;
         const seq = [{ t: 0, i: p.init }, ...evs];
-        if (pg.mode === "x") {
+        if (pg.mode === "y") {
+          const fp = pg.at(finalI);
+          const shape = rect(fp.x, fp.y - fp.h / 2, fp.w, fp.h, "ptr-box", 2);
+          let frames = null;
+          if (evs.length) {
+            frames = [];
+            seq.forEach((st, k) => {
+              if (k) frames.push([st.t, `transform:translate(0px,${r1(pg.at(seq[k - 1].i).y - fp.y)}px)`]);
+              frames.push([k ? st.t + 0.3 : 0, `transform:translate(0px,${r1(pg.at(st.i).y - fp.y)}px)`]);
+            });
+          }
+          svgCells += `<g class="ptr-g"${frames ? animAttr(frames) : ""}>${shape}</g>`;
+        } else if (pg.mode === "x") {
           const fp = pg.at(finalI);
           const shape = `<path d="M${r1(fp.x)} ${r1(fp.y + 1)}l-5 8h10z" class="ptr"/>` + text(fp.x, fp.y + 19, name.slice(0, 5), "ptr-t");
           addText({ x: fp.x - textW(name.slice(0, 5), 9) / 2, y: fp.y + 10, w: textW(name.slice(0, 5), 9), h: 11 }, `${m.id}.ptr`, `${m.id} pointer ${name}`);
@@ -707,13 +769,15 @@ export function factory(opts) {
       }
       if (e.kind === "belt") {
         svgBelts += `<path d="${pathD(e.pts)}" class="belt" data-edge="${esc(e.id)}" data-from="${esc(e.from)}" data-to="${esc(e.to)}"/>`;
-        for (let d = 22; d < e.len - 14; d += 44) {
+        for (let d = e.armOut ? 46 : 22; d < e.len - (e.armIn ? 40 : 14); d += 44) {
           const p = pointAt(e.pts, d), q = pointAt(e.pts, d + 1);
           const ang = Math.atan2(q[1] - p[1], q[0] - p[0]) * (180 / Math.PI);
           svgBelts += `<path d="M-3 -3.5L1.5 0L-3 3.5" class="chev" transform="translate(${r1(p[0])} ${r1(p[1])}) rotate(${r1(ang)})"/>`;
         }
-        svgBelts += `<path d="M${r1(e.p0[0])} ${r1(e.p0[1])}m${DIRS[e.outSide][1] ? -7 : 0} ${DIRS[e.outSide][0] ? -7 : 0}l${DIRS[e.outSide][1] ? 14 : 0} ${DIRS[e.outSide][0] ? 14 : 0}" class="port"/>`;
-        svgBelts += `<path d="M${r1(e.p1[0])} ${r1(e.p1[1])}m${DIRS[e.inSide][1] ? -7 : 0} ${DIRS[e.inSide][0] ? -7 : 0}l${DIRS[e.inSide][1] ? 14 : 0} ${DIRS[e.inSide][0] ? 14 : 0}" class="port"/>`;
+        for (const [pt, side] of [[e.p0, e.outSide], [e.p1, e.inSide]]) {
+          const hz = side === "e" || side === "w";
+          svgPorts += rect(pt[0] - (hz ? 3 : 8), pt[1] - (hz ? 8 : 3), hz ? 6 : 16, hz ? 16 : 6, "mouth", 1.5);
+        }
       } else {
         svgSignals += `<path d="${pathD(e.pts)}" class="sig" marker-end="url(#bl-arrow)" data-edge="${esc(e.id)}" data-from="${esc(e.from)}" data-to="${esc(e.to)}"/>`;
       }
@@ -743,6 +807,67 @@ export function factory(opts) {
         svgItems += `<path d="${pathD(tl.e.pts)}" class="pulse" opacity="0"${animAttr(windows([[tl.t0, tl.t1]]))}/>`;
       }
     }
+
+    const moves = timeline.filter((tl) => tl.type === "item" || tl.type === "pulse");
+    for (const m of machines.values()) {
+      if (!m.geo.flap) continue;
+      const outs = belts.filter((e) => e.from === m.id && e.p0);
+      if (!outs.length) continue;
+      const { cx, cy } = m.geo.flap;
+      const ang = (e) => (Math.atan2(e.p0[1] - cy, e.p0[0] - cx) * 180) / Math.PI;
+      const reach = (e) => Math.hypot(e.p0[0] - cx, e.p0[1] - cy);
+      const L = Math.min(...outs.map(reach)) * 0.78;
+      for (const e of outs) svgMachines += `<path d="M${cx} ${cy}L${r1(e.p0[0])} ${r1(e.p0[1])}" class="route"/>`;
+      const ins = belts.filter((e) => e.to === m.id && e.p1);
+      for (const e of ins) svgMachines += `<path d="M${r1(e.p1[0])} ${r1(e.p1[1])}L${cx} ${cy}" class="route"/>`;
+      const evs = moves.filter((tl) => tl.e.from === m.id).map((tl) => ({ t: Math.max(0.05, tl.t0 - 0.35), a: ang(tl.e) }));
+      const finalA = evs.length ? evs.at(-1).a : ang(outs[0]);
+      let frames = null;
+      if (evs.length) {
+        frames = [[0, `transform:rotate(${r1(evs[0].a - finalA)}deg)`]];
+        let cur = evs[0].a;
+        for (const ev of evs) {
+          frames.push([ev.t, `transform:rotate(${r1(cur - finalA)}deg)`], [ev.t + 0.3, `transform:rotate(${r1(ev.a - finalA)}deg)`]);
+          cur = ev.a;
+        }
+      }
+      const rad = (finalA * Math.PI) / 180;
+      svgPorts += `<g class="rot" style="transform-origin:${cx}px ${cy}px"${frames ? animAttr(frames) : ""}><path d="M${cx} ${cy}L${r1(cx + Math.cos(rad) * L)} ${r1(cy + Math.sin(rad) * L)}" class="flap"/></g><circle cx="${cx}" cy="${cy}" r="3.2" class="pivot"/>`;
+    }
+    const armBoxes = [];
+    for (const e of belts.filter((x) => x.pts)) {
+      for (const [on, pt, side, role] of [[e.armOut, e.p0, e.outSide, "out"], [e.armIn, e.p1, e.inSide, "in"]]) {
+        if (!on) continue;
+        const d = DIRS[side], bx = pt[0] + d[0] * 15, by = pt[1] + d[1] * 15;
+        const restOut = role === "in";
+        const tipX = bx + d[0] * 19 * (restOut ? 1 : -1), tipY = by + d[1] * 19 * (restOut ? 1 : -1);
+        const px = -d[1] * 5.5, py = d[0] * 5.5;
+        const swings = moves.filter((tl) => tl.e === e).map((tl) => (role === "in" ? tl.t1 - 0.12 : Math.max(0.05, tl.t0 - 0.32)));
+        const sweepBox = (sign) => {
+          const qx = -d[1] * sign, qy = d[0] * sign;
+          const xs = [bx + d[0] * 19, bx - d[0] * 19, bx + qx * 19, bx - qx * 6, bx - 6, bx + 6].filter((v, i) => i < 4 || !d[0]);
+          const ys = [by + d[1] * 19, by - d[1] * 19, by + qy * 19, by - qy * 6, by - 6, by + 6].filter((v, i) => i < 4 || !d[1]);
+          return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys), id: e.id };
+        };
+        const clean = (bx2) => !texts.some((t) => overlap(t, bx2) && t.owner !== `${e.from}.cell` && t.owner !== `${e.to}.cell`);
+        const sign = !swings.length || clean(sweepBox(1)) ? 1 : clean(sweepBox(-1)) ? -1 : 1;
+        const deg = 180 * sign;
+        let frames = null;
+        if (swings.length) {
+          frames = [[0, "transform:rotate(0deg)"]];
+          let last = -1;
+          for (const ts of swings) {
+            if (ts < last) continue;
+            frames.push([ts, "transform:rotate(0deg)"], [ts + 0.22, `transform:rotate(${deg}deg)`], [ts + 0.48, "transform:rotate(0deg)"]);
+            last = ts + 0.5;
+          }
+        }
+        armBoxes.push(swings.length ? sweepBox(sign) : { x: Math.min(bx, tipX) - 6, y: Math.min(by, tipY) - 6, w: Math.abs(tipX - bx) + 12, h: Math.abs(tipY - by) + 12, id: e.id });
+        svgArms += `<circle cx="${r1(bx)}" cy="${r1(by)}" r="5.5" class="ins-base"/><g class="rot" style="transform-origin:${r1(bx)}px ${r1(by)}px"${frames ? animAttr(frames) : ""}><path d="M${r1(bx)} ${r1(by)}L${r1(tipX)} ${r1(tipY)}" class="ins-arm"/><path d="M${r1(tipX - px)} ${r1(tipY - py)}L${r1(tipX + px)} ${r1(tipY + py)}" class="ins-hand"/></g><circle cx="${r1(bx)}" cy="${r1(by)}" r="2.2" class="ins-pin"/>`;
+      }
+    }
+    const ownedBy = (t, e) => [e.from, e.to].some((id) => t.owner === `${id}.cell`);
+    for (const t of texts) for (const a of armBoxes) if (overlap(t, a) && !ownedBy(t, belts.find((x) => x.id === a.id))) fail(`text over an inserter arm: ${t.what} covers the arm on ${a.id}`);
 
     for (const r of raws) {
       if (r.box) for (const b of boxes) if (overlap(r.box, b)) fail(`raw drawing overlaps machine ${b.id}`);
@@ -831,7 +956,7 @@ export function factory(opts) {
 .hub,.dial{fill:var(--cell);stroke:var(--ink);stroke-width:1}.seam,.tick{fill:none;stroke:var(--mid);stroke-width:1}
 .tube{fill:var(--body);stroke:var(--ink);stroke-width:1.4}.leg{stroke:var(--ink);stroke-width:1.2}
 .blade{fill:var(--mid)}.slot{stroke:var(--ink);stroke-width:2}.rod{stroke:var(--ink);stroke-width:3}.head,.die{fill:var(--mid)}
-.chute,.link{fill:none;stroke:var(--mid);stroke-width:1}.flap{stroke:var(--ink);stroke-width:2.4;stroke-linecap:round}.pivot{fill:var(--ink)}.handle{stroke:var(--mid);stroke-width:1.6}
+.chute,.link{fill:none;stroke:var(--mid);stroke-width:1}.flap{stroke:var(--accent);stroke-width:3.2;stroke-linecap:round}.pivot{fill:var(--ink)}.handle{stroke:var(--mid);stroke-width:1.6}
 .dock{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.bay{fill:none;stroke:var(--lo);stroke-dasharray:3 3}
 .cell{fill:var(--cell);stroke:var(--lo);stroke-width:1}.mark{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.4}
 .px-off{fill:var(--cell)}.px-on{fill:var(--ink)}.px-hot{fill:var(--accent)}
@@ -839,7 +964,9 @@ export function factory(opts) {
 .lbl{font-size:11px;font-weight:600;fill:var(--mid);letter-spacing:.02em}
 .cond{font-size:10px;font-style:italic;fill:var(--mid)}.sig-t{font-size:10px;fill:var(--mid)}
 .belt{fill:none;stroke:var(--belt);stroke-width:9;stroke-linejoin:round}.chev{fill:none;stroke:var(--lo);stroke-width:1.4}
-.port{stroke:var(--ink);stroke-width:2.4}
+.mouth{fill:var(--slot)}.well{fill:var(--cell);stroke:var(--lo);stroke-width:1}.route{fill:none;stroke:var(--lo);stroke-width:1.2;stroke-dasharray:3 3}
+.idx-rail{fill:var(--belt)}.idx-n{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;fill:var(--mid)}.end-t{font-size:8px;font-weight:700;letter-spacing:.06em;fill:var(--mid)}
+.ptr-box{fill:none;stroke:var(--accent);stroke-width:2}.ins-base{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.ins-arm{stroke:var(--ink);stroke-width:3;stroke-linecap:round}.ins-hand{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}.ins-pin{fill:var(--accent)}
 .sig{fill:none;stroke:var(--mid);stroke-width:1.1;stroke-dasharray:4 3}.arrow{fill:var(--mid)}
 .ptr{fill:var(--accent)}.ptr-t{font-size:9px;font-weight:700;fill:var(--accent)}.arm{stroke:var(--accent);stroke-width:2.4;stroke-linecap:round}.needle{stroke:var(--accent);stroke-width:2}
 .hot{fill:none;stroke:var(--accent);stroke-width:2}
@@ -872,10 +999,12 @@ ${text(G, 47, opts.subtitle ?? "", "sub", "start")}
 <g class="signals">${svgSignals}</g>
 <g class="hot-g">${svgHot}</g>
 <g class="machines">${svgMachines}</g>
+<g class="ports">${svgPorts}</g>
 <g class="arms">${svgUnder}</g>
 <g class="cells">${svgCells}</g>
 <g class="labels">${svgLabels}</g>
 <g class="items">${svgItems}</g>
+<g class="inserters">${svgArms}</g>
 <g class="caption">${svgCaps}</g>
 <g class="legend">${svgLegend}</g>
 <g class="index">${svgIndex}</g>
