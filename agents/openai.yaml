@@ -1,0 +1,3 @@
+interface:
+  display_name: "Beltline"
+  short_description: "Explain a codebase as an animated factory tour of its real data"

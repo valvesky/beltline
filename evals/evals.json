@@ -1,0 +1,89 @@
+{
+  "skill_name": "beltline",
+  "scoring": {
+    "axes": {
+      "correctness": "Every value, condition, write and source pointer matches the code at the inspected revision; nothing is invented; gaps are disclosed.",
+      "visual_design": "Machines are cast by behaviour from the catalogue; one accent; calm tones; aligned main route; consistent spacing; both themes work.",
+      "visual_clarity": "A newcomer can name each structure from its shape and follow the item from input to output in under a minute without reading prose; no text walls."
+    },
+    "scale": "0-10 per axis",
+    "baseline": "velocitty/factorio.svg made by the previous factorio-md skill was scored 9 correctness, 5 visual design, 3 visual clarity by the owner. A new run must beat 5 and 3 without dropping correctness below 9."
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Make a beltline tour of evals/files/ringlog. Use the test's lines.",
+      "files": [
+        "evals/files/ringlog/ringlog.js",
+        "evals/files/ringlog/ringlog.test.js"
+      ],
+      "expected_output": "One beltline.svg. Station tier. RingLog.buf is a drum with 3 sectors and head/tail arms; the trace writes boot, load, ready, then tick forces flush(1) so boot leaves on a belt to a sink dock and tick lands in sector 0; final head=1 tail=1. write() and flush() are the only function machines. The end-state markup shows load, ready, tick in the drum.",
+      "expectations": [
+        "node scripts/check.mjs beltline.svg prints 'svg check passed'",
+        "node scripts/check-sources.mjs beltline.svg evals/files/ringlog prints 'sources: 0 unresolved'",
+        "build output contains 'audit passed'",
+        "the SVG contains a machine with class m-drum",
+        "the SVG contains the values boot, load, ready and tick",
+        "the transcript shows capture.mjs was run and its PNGs were opened",
+        "the final summary includes a cast table"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "how does the lru thing in evals/files/lru work? picture pls",
+      "files": [
+        "evals/files/lru/lru.js",
+        "evals/files/lru/lru.test.js",
+        "evals/files/lru/README.md"
+      ],
+      "expected_output": "A Station tour derived from source, not from the README (which wrongly claims a linked list and a heap). The Map is pigeonholes with evict: true. The trace follows the test: set a, set b, get a (a moves to most-recent), set c evicts b. No heap or linked list appears anywhere. The summary notes that the README disagrees with the source.",
+      "expectations": [
+        "the SVG contains a machine with class m-pigeonholes",
+        "the SVG does not contain the words heap or timestamp",
+        "the SVG shows b being evicted, not a",
+        "the final summary mentions that README.md does not match the code",
+        "svg check passed and sources: 0 unresolved"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "beltline /home/raw/rsr/src/velocitty — the whole terminal, bytes from the pty to pixels",
+      "files": [],
+      "expected_output": "A Plant overview whose machines are subsystems (PTY dock, CircBuffer drum, Preparser cutter, VtState selector, Grid rack/drum with Styles pigeonholes, renderer press with glyph-atlas plate, Frame.pixels plate, presenter dock), at most 24 machines and 140 texts, with one illustrative byte read traced end to end, and an offer of Line tours for the parser, grid and renderer. Correctness stays at the baseline's 9 while design and clarity clearly beat 5 and 3.",
+      "expectations": [
+        "svg check passed with no more than 140 texts and 24 colour literals",
+        "sources: 0 unresolved against the recorded revision",
+        "at most 24 elements carry data-machine",
+        "no text line on the canvas exceeds 96 characters",
+        "the summary offers per-subsystem Line tours",
+        "owner scores: correctness >= 9, visual design > 5, visual clarity > 3"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Just the escape-sequence parser path in velocitty please, source only, as parser.svg",
+      "files": [],
+      "expected_output": "A Line tour named parser.svg covering Preparser run framing through VtState dispatch to a Grid cell write for an input like ESC[31m x, with VtState as a selector whose needle moves ground -> esc -> csi -> ground, the params as registers, and one alternate path (incomplete CSI held across reads). Nothing outside the parser path is drawn except the necessary input and output docks.",
+      "expectations": [
+        "the output file is parser.svg",
+        "the SVG contains a machine with class m-selector",
+        "svg check passed and sources: 0 unresolved",
+        "no machine is drawn for the renderer, atlas or presenter"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "make a factorio.md style animated svg of evals/files/ringlog but loop it forever",
+      "files": [
+        "evals/files/ringlog/ringlog.js",
+        "evals/files/ringlog/ringlog.test.js"
+      ],
+      "expected_output": "The skill triggers on the old factorio.md wording. It explains that the tour plays once and holds its end state because an SVG shown as an <img> has no pause control, and delivers the play-once tour.",
+      "expectations": [
+        "the SVG has no 'infinite' animation",
+        "the response explains why playback holds its end state",
+        "svg check passed"
+      ]
+    }
+  ]
+}

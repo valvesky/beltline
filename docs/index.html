@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beltline · a skill for Claude Code</title>
+<meta name="description" content="Point Claude at a program and it draws the factory that runs it: one animated SVG where every data structure is a machine and a real input rides the belts.">
+<style>
+:root{
+  --bg:#f3f1ea;--ink:#1d1d1b;--soft:#4a4944;--muted:#8a877e;--faint:#b6b2a6;--rule:#e2dfd5;
+  --card:#fbfaf6;--card-rule:#e6e3d9;--chip:#e9e6dc;--accent:#c4661a;
+  --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#191917;--ink:#e9e7e1;--soft:#c3c1ba;--muted:#8a8882;--faint:#5c5a55;--rule:#2b2a26;
+  --card:#1f1e1b;--card-rule:#2e2d29;--chip:#2b2a26;--accent:#ee9446;
+}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans);font-feature-settings:"ss01","cv11"}
+a{color:inherit;text-decoration:underline;text-decoration-color:var(--faint);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--ink)}
+em.s{font-family:var(--serif);font-style:italic;font-size:1.06em}
+code{font:12.5px var(--mono);background:var(--chip);padding:1px 5px;border-radius:3px}
+strong{font-weight:600}
+
+.page{display:grid;grid-template-columns:200px 550px 200px;column-gap:44px;justify-content:center;padding:56px 24px 120px}
+nav{grid-column:1;position:sticky;top:56px;align-self:start;font-size:13.5px;line-height:26px}
+nav ul{list-style:none;margin:0 0 30px;padding:0}
+nav a{text-decoration:none;color:var(--muted)}
+nav a:hover,nav a.on{color:var(--ink)}
+main{grid-column:2;min-width:0}
+.wide{width:794px}
+
+header .top{display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:15px;font-weight:600;margin:0}
+header h1 span{font-weight:400;color:var(--muted)}
+header .gh{color:var(--muted);display:inline-flex}
+header .gh:hover{color:var(--ink)}
+.tag{margin:22px 0 22px;font-size:15px}
+.strip{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:14px 2px;gap:8px}
+.meta{font-size:13px;color:var(--muted);margin:12px 0 34px}
+.meta span+span::before{content:"·";margin:0 9px;color:var(--faint)}
+.meta a{color:var(--muted)}
+
+.crop{position:relative;overflow:hidden;flex:none;width:calc(var(--w) * var(--s,.62) * 1px);height:calc(var(--h) * var(--s,.62) * 1px)}
+.crop img{position:absolute;max-width:none;width:calc(var(--W,1200) * var(--s,.62) * 1px);left:calc(var(--x) * var(--s,.62) * -1px);top:calc(var(--y) * var(--s,.62) * -1px)}
+
+p{margin:0 0 14px}
+.lede p{color:var(--ink)}
+section{margin-top:76px;scroll-margin-top:40px}
+h2{display:flex;align-items:center;gap:16px;font-size:15px;font-weight:600;margin:0 0 22px}
+h2::after{content:"";flex:1;height:1px;background:var(--rule);order:1}
+h2 i{order:2;font:italic 15px var(--serif);color:var(--muted)}
+
+.n{position:relative}
+.n aside{position:absolute;left:calc(100% + 44px);top:2px;width:180px;font-size:12px;line-height:1.5;color:var(--muted)}
+.n aside b{font-weight:400;color:var(--faint);position:absolute;left:-14px;font-size:10px;top:1px}
+sup{font-size:9.5px;color:var(--muted);margin-left:1px}
+
+figure{margin:44px 0 30px}
+figure.hero{margin:48px 0 26px}
+figure a.full{display:block;text-decoration:none}
+figure img.tour{display:block;width:100%;height:auto}
+figcaption{font-size:12.5px;color:var(--muted);margin-top:10px}
+
+blockquote{margin:30px 0 30px;padding:0}
+blockquote p{font:400 30px/1.25 var(--serif);margin:0 0 6px;letter-spacing:-.01em}
+blockquote cite{font-style:normal;font-size:12.5px;color:var(--muted)}
+
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px 12px;margin:34px 0 30px}
+.grid div.cell{display:flex;flex-direction:column;align-items:center;text-align:center}
+.grid .box{height:88px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.grid b{font-size:13px;font-weight:500;line-height:1.35}
+.grid small{font-size:12.5px;color:var(--muted);line-height:1.35}
+
+.words{border-top:1px solid var(--rule);margin:22px 0 26px}
+.words div{display:grid;grid-template-columns:110px 1fr;gap:16px;border-bottom:1px solid var(--rule);padding:14px 0;color:var(--soft)}
+.words div>code{justify-self:start;align-self:start}
+
+.card{background:var(--card);border:1px solid var(--card-rule);border-radius:12px;padding:8px 18px;margin:24px 0 26px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.prompts div{display:grid;grid-template-columns:136px 1fr;gap:16px;padding:12px 0}
+.prompts span{font-size:13px;color:var(--muted)}
+.prompts q{quotes:none}
+.prompts q::before{content:"/beltline ";color:var(--faint)}
+.prompts q.bare::before{content:""}
+
+ol.steps{list-style:none;padding:0;margin:20px 0 28px;border-top:1px solid var(--rule);counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:28px 1fr;border-bottom:1px solid var(--rule);padding:12px 0;color:var(--soft)}
+ol.steps li::before{content:counter(s,decimal-leading-zero);color:var(--faint);font-variant-numeric:tabular-nums}
+ol.steps strong{color:var(--ink)}
+
+.code{position:relative;padding:14px 18px 16px}
+.code .file{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.code pre{margin:0;overflow-x:auto;font:12px/1.65 var(--mono);color:var(--ink)}
+.code .k{color:var(--muted)}.code .str{color:var(--accent)}
+.copy{position:absolute;top:12px;right:12px;border:0;background:none;color:var(--faint);cursor:pointer;padding:4px;font:12px var(--sans)}
+.copy:hover{color:var(--ink)}
+
+table{width:100%;border-collapse:collapse;margin:20px 0 28px;font-size:14px}
+th{font-weight:400;color:var(--muted);text-align:left;font-size:12.5px;padding:0 10px 9px 0;border-bottom:1px solid var(--rule)}
+td{padding:11px 10px 11px 0;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--soft)}
+td:first-child{color:var(--ink);font-weight:500}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+td .pass{font:12px var(--mono);color:var(--ink);white-space:nowrap}td code{white-space:nowrap}
+.warn{font:italic 1.02em var(--serif);color:var(--accent)}
+
+pre.sh{background:var(--card);border:1px solid var(--card-rule);border-radius:12px;padding:16px 18px;font:12.5px/1.7 var(--mono);overflow-x:auto;margin:18px 0 24px}
+pre.sh .c{color:var(--muted)}
+
+details{border-bottom:1px solid var(--rule);padding:12px 0}
+details:first-of-type{border-top:1px solid var(--rule)}
+summary{cursor:pointer;list-style:none;font-weight:500}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";float:right;color:var(--muted)}
+details[open] summary::after{content:"–"}
+details p{color:var(--soft);margin:10px 0 2px}
+
+footer{margin-top:80px;padding-top:18px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between}
+
+@media (max-width:1100px){
+  .page{grid-template-columns:minmax(0,600px);padding:40px 16px 90px}
+  nav{display:none}
+  main{grid-column:1}
+  .wide{width:100%}
+  .n aside{position:static;width:auto;margin:-6px 0 14px 14px}
+  .n aside b{position:static;margin-right:6px}
+}
+@media (max-width:560px){
+  .strip .crop:nth-child(n+4){display:none}
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .prompts div,.words div{grid-template-columns:1fr;gap:4px}
+  blockquote p{font-size:25px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<nav aria-label="Sections">
+  <ul>
+    <li><a href="#top" class="on">Beltline</a></li>
+    <li><a href="https://github.com/valvesky/beltline">Source</a></li>
+    <li><a href="https://github.com/valvesky/beltline/tree/main/examples">Examples</a></li>
+  </ul>
+  <ul>
+    <li><a href="#machines">Machines, not dashboards</a></li>
+    <li><a href="#prompt">Writing a prompt</a></li>
+    <li><a href="#steps">What Claude does</a></li>
+    <li><a href="#cast">Casting</a></li>
+    <li><a href="#kit">The kit</a></li>
+    <li><a href="#checks">Checks that fail closed</a></li>
+    <li><a href="#before">Before and after</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="#limits">Limits</a></li>
+    <li><a href="#questions">Questions</a></li>
+  </ul>
+</nav>
+
+<main id="top">
+<header>
+  <div class="top">
+    <h1>Beltline <span>· a skill for Claude Code</span></h1>
+    <a class="gh" href="https://github.com/valvesky/beltline" aria-label="Beltline on GitHub"><svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+  </div>
+  <p class="tag">Point Claude at a program, and it draws <em class="s">the factory</em> that runs it.</p>
+  <div class="strip" aria-hidden="true">
+    <div class="crop" style="--x:222;--y:62;--w:128;--h:124"><img src="tours/catalogue.svg" alt=""></div>
+    <div class="crop" style="--x:508;--y:82;--w:88;--h:94"><img src="tours/catalogue.svg" alt=""></div>
+    <div class="crop" style="--x:636;--y:104;--w:140;--h:66"><img src="tours/catalogue.svg" alt=""></div>
+    <div class="crop" style="--x:516;--y:272;--w:116;--h:70"><img src="tours/catalogue.svg" alt=""></div>
+    <div class="crop" style="--x:16;--y:272;--w:156;--h:70"><img src="tours/catalogue.svg" alt=""></div>
+  </div>
+  <div class="meta"><span>/beltline</span><span>16 machines</span><span>60 tests</span><span>by Vasco</span><span>9 November 2026</span><span><a href="#install">Install ↓</a></span></div>
+</header>
+
+<div class="lede">
+  <p>Most pictures of how a program works are boxes and arrows. They tell you which parts exist, but not what the data looks like as it passes through them, so the reader has to run the program in their head. I wanted Claude to draw <em class="s">the data moving</em>: one real input, travelling through the real structures, changing the real cells.</p>
+  <p>Beltline is a skill for Claude Code that does this. You point it at a repository or a subsystem. Claude reads the source, picks a concrete input from the tests, and draws the program as a small factory. Each data structure is a machine shaped like its behaviour, the input rides belts from entry to exit, and every station links to <a href="#checks">the source line that proves it</a>. The result is one animated SVG that also works as a plain image in a README.</p>
+</div>
+
+<figure class="hero wide">
+  <a class="full" href="tours/velocitty.svg"><img class="tour" src="tours/velocitty.svg" alt="Animated factory tour of the velocitty terminal emulator: PTY bytes enter a ring-buffer drum, a cutter splits them into runs, a diverter sends text and escape sequences to the grid, styles and title, and the renderer paints glyphs from an atlas into the framebuffer and out to the window."></a>
+  <figcaption>The velocitty terminal emulator, from a PTY read to pixels on screen. Open it full size to read the values.</figcaption>
+</figure>
+
+<div class="n"><p>This tour came from one line, <code>/beltline /src/velocitty — the whole terminal, bytes from the pty to pixels</code>, given to a fresh Claude that had never seen the program. It read the Zig source, took its two inputs from the ring buffer's own tests, and traced them through eighteen machines.<sup>1</sup></p><aside><b>1</b>Nothing was run. Every value comes from reading the code at revision 2d5a1a4, and the tour says so in its subtitle.</aside></div>
+<p>Watch the drum on the left. Its <code>tail</code> arm stops behind three bytes of an unfinished escape sequence, and the next read completes them. The colour lands in the pen, the style table interns it as id 1, and the <code>é</code> misses the glyph cache, so it is rasterised into the atlas before it reaches the framebuffer.</p>
+
+<section id="machines">
+  <h2>Machines, not dashboards <i>01</i></h2>
+  <p>The skill rests on one rule, at the top of its instructions:</p>
+  <blockquote><p>The machine is the explanation.</p><cite>SKILL.md, “The one idea”</cite></blockquote>
+  <p>A reader should know what a structure is from its shape and its motion, before reading its label. A ring buffer is a drum whose arms turn. A stack is a spring tube that fills from the bottom. A tokenizer is a cutter. If a station needs a paragraph next to it, the drawing has failed.</p>
+  <div class="n"><p>It fails in two ways, and the first version of this skill did both. <strong>The dashboard:</strong> every station a panel of fields, code and notes, correct but unreadable. <strong>Boxes and arrows:</strong> identical labelled rectangles, so nothing shows what kind of structure each one is. The fix for both is the same: a fixed catalogue of small machines, and a kit that refuses to place text the reader doesn’t need.<sup>2</sup></p><aside><b>2</b>The kit fails the build above 140 visible pieces of text. A good tour shows between 40 and 120.</aside></div>
+  <div class="grid">
+    <div class="cell"><div class="box"><div class="crop" style="--x:16;--y:108;--w:176;--h:66;--s:.55"><img src="tours/catalogue.svg" alt=""></div></div><b>Rack</b><small>Array, slice, buffer</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:222;--y:62;--w:128;--h:124;--s:.6"><img src="tours/catalogue.svg" alt=""></div></div><b>Drum</b><small>Ring buffer</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:392;--y:82;--w:94;--h:104;--s:.75"><img src="tours/catalogue.svg" alt=""></div></div><b>Hopper</b><small>Queue, channel</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:508;--y:82;--w:88;--h:94;--s:.8"><img src="tours/catalogue.svg" alt=""></div></div><b>Spring tube</b><small>Stack</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:636;--y:104;--w:140;--h:66;--s:.68"><img src="tours/catalogue.svg" alt=""></div></div><b>Pigeonholes</b><small>Hash map, cache</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:780;--y:104;--w:162;--h:66;--s:.6"><img src="tours/catalogue.svg" alt=""></div></div><b>Pigeonholes + chute</b><small>LRU cache</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:952;--y:82;--w:158;--h:110;--s:.6"><img src="tours/catalogue.svg" alt=""></div></div><b>Sorting tower</b><small>Tree, trie</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:16;--y:272;--w:156;--h:70;--s:.62"><img src="tours/catalogue.svg" alt=""></div></div><b>Selector</b><small>State machine</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:228;--y:272;--w:100;--h:90;--s:.82"><img src="tours/catalogue.svg" alt=""></div></div><b>Cutter</b><small>Tokenizer, parser</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:516;--y:272;--w:116;--h:70;--s:.75"><img src="tours/catalogue.svg" alt=""></div></div><b>Pixel plate</b><small>Bitmap, atlas</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:856;--y:272;--w:118;--h:79;--s:.75"><img src="tours/catalogue.svg" alt=""></div></div><b>Cabinet</b><small>Struct, registers</small></div>
+    <div class="cell"><div class="box"><div class="crop" style="--x:996;--y:296;--w:72;--h:57;--s:1"><img src="tours/catalogue.svg" alt=""></div></div><b>Turnstile</b><small>Lock, mutex</small></div>
+  </div>
+  <p>Sixteen kinds in all, with a press for plain transforms, a chain for linked lists, a diverter for branches and a loading dock for anything outside the program. They are all in <a href="tours/catalogue.svg">the catalogue</a>.</p>
+</section>
+
+<section id="prompt">
+  <h2>Writing a prompt <i>02</i></h2>
+  <p>The prompt is <em class="s">the scope</em>, not the drawing. Name a repository, a subsystem or one path through it, and Claude decides which machines it needs. A few words change what you get:</p>
+  <div class="words">
+    <div><code>just …</code><span>Narrows the tour to one path or subsystem. Without it, Claude tours the whole program and offers smaller tours of the parts it had to leave out.</span></div>
+    <div><code>as x.svg</code><span>Names the output file. The default is <code>beltline.svg</code> in the repository, with its build script next to it.</span></div>
+    <div><code>source only</code><span>Ignores existing docs and diagrams completely. Claude reads them anyway only to point out where they disagree with the code.</span></div>
+  </div>
+  <div class="card prompts">
+    <div><span>The whole program</span><q>this repo</q></div>
+    <div><span>One path</span><q>just the request path, from the router to the response, as request.svg</q></div>
+    <div><span>One structure</span><q>how the LRU in src/cache evicts entries</q></div>
+    <div><span>Without the command</span><q class="bare">show me how this parser works, as a picture</q></div>
+  </div>
+  <div class="n"><p>You rarely need the command. The skill’s description covers visual codebase tours, data-flow pictures and “show me how this code works”, so Claude reaches for it on its own.<sup>3</sup></p><aside><b>3</b>It also answers to the old name, factorio.md, so existing prompts keep working.</aside></div>
+</section>
+
+<section id="steps">
+  <h2>What Claude does <i>03</i></h2>
+  <p>Between your line and the finished SVG, Claude works through a fixed order. <a href="#cast">Most of the clarity is decided in step three</a>, before anything is drawn.</p>
+  <ol class="steps">
+    <li><span><strong>Size it.</strong> One path, one subsystem or the whole plant, each with a ceiling on machines and steps. A whole large program becomes an overview plus smaller tours.</span></li>
+    <li><span><strong>Read and trace.</strong> Follow the real calls, mutations and branches, and walk a concrete input from the tests through every step, noting each value before and after.</span></li>
+    <li><span><strong>Cast the machines.</strong> Give each store one machine from the catalogue, chosen by behaviour. Functions that only pass data along become belts.</span></li>
+    <li><span><strong>Lay out the floor.</strong> The main route on one row, stores under their owners, side paths in their own lanes.</span></li>
+    <li><span><strong>Write the steps.</strong> Each step moves one item along a belt or puts one machine to work, with its writes, a one-line caption and its source line.</span></li>
+    <li><span><strong>Build, check and look.</strong> Three scripts must reach zero. Then Claude screenshots the frames, opens every one and fixes what a critic would find.</span></li>
+  </ol>
+</section>
+
+<section id="cast">
+  <h2>Casting <i>04</i></h2>
+  <p>Before any layout, Claude writes a cast table and shows it to you. This is the calculator from the examples, evaluating <code>2*(3+4)</code>:</p>
+  <table>
+    <thead><tr><th>Structure</th><th>Machine</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>tokens</code></td><td>rack of 7, with an <code>i</code> pointer</td><td>a contiguous array walked by index</td></tr>
+      <tr><td><code>ops</code></td><td>spring tube</td><td>push and pop are the whole point</td></tr>
+      <tr><td><code>out</code></td><td>rack of 5</td><td>postfix order fills left to right</td></tr>
+      <tr><td><code>stack</code></td><td>spring tube</td><td>evaluate pops two and pushes one</td></tr>
+      <tr><td><code>tokenize()</code></td><td>cutter</td><td>it cuts one string into pieces</td></tr>
+    </tbody>
+  </table>
+  <figure>
+    <a class="full" href="tours/calc.svg"><img class="tour" src="tours/calc.svg" alt="Animated tour of calc.js: the string 2*(3+4) is cut into seven tokens, reordered through an operator stack into 2 3 4 + *, and evaluated on a value stack to print 14. A second trace rejects 2$ with a SyntaxError."></a>
+    <figcaption>calc.js, the skill’s quality bar: ten machines, twenty steps and a rejected input.</figcaption>
+  </figure>
+  <div class="n"><p>The cast is about behaviour, not type names. A <code>Vec</code> used as a stack is a spring tube. A <code>HashMap</code> used as an LRU gets the eviction chute. A parser is a selector only if its source really keeps a state variable.<sup>4</sup></p><aside><b>4</b>Each store shows a window of three to eight cells, the ones the trace touches. A 1 MiB buffer is still a rack of six.</aside></div>
+</section>
+
+<section id="kit">
+  <h2>The kit <i>05</i></h2>
+  <p>Claude never writes SVG by hand. It writes a short build script against the kit, saying <em class="s">what</em> the machines are and <em class="s">where</em> they sit. The kit draws, routes, animates and themes them, and audits the result before it writes a byte.</p>
+  <div class="card code">
+    <div class="file">examples/calc/build.mjs</div>
+    <button class="copy" type="button" aria-label="Copy code">Copy</button>
+<pre><span class="k">F</span>.machine(<span class="str">"tokenize"</span>, { kind: <span class="str">"cutter"</span>, at: [6, 2], label: <span class="str">"tokenize()"</span>, src: <span class="str">"calc.js:1"</span> })
+ .machine(<span class="str">"tokens"</span>, { kind: <span class="str">"rack"</span>, at: [12, 2], label: <span class="str">"tokens[]"</span>, src: <span class="str">"calc.js:2"</span>,
+           cells: [<span class="str">""</span>, <span class="str">""</span>, <span class="str">""</span>, <span class="str">""</span>, <span class="str">""</span>, <span class="str">""</span>, <span class="str">""</span>], pointers: { i: 0 } })
+ .machine(<span class="str">"ops"</span>, { kind: <span class="str">"stack"</span>, at: [24, 7], label: <span class="str">"ops[]"</span>, src: <span class="str">"calc.js:24"</span>, cells: [<span class="str">""</span>, <span class="str">""</span>, <span class="str">""</span>] });
+
+<span class="k">F</span>.belt(<span class="str">"tokenize"</span>, <span class="str">"tokens"</span>).belt(<span class="str">"toRpn"</span>, <span class="str">"ops"</span>).belt(<span class="str">"ops"</span>, <span class="str">"toRpn"</span>);
+
+<span class="k">F</span>.step({ belt: <span class="str">"toRpn->ops"</span>, item: <span class="str">"*"</span>, writes: { ops: [[0, <span class="str">"*"</span>]] },
+          pointers: { tokens: { i: 1 } }, caption: <span class="str">"* finds ops[] empty and waits there"</span>, src: <span class="str">"calc.js:33"</span> });</pre>
+  </div>
+  <div class="n"><p>The static markup is always the end state: every cell holds its final value and the last caption is showing. Playback starts from the initial values, runs once, and lands exactly there. So a reader with reduced motion, or a README that never plays it, still gets the whole story.<sup>5</sup></p><aside><b>5</b>All motion lives inside <code>prefers-reduced-motion: no-preference</code>, and colours are tokens with a dark set, so the same file follows the reader’s theme.</aside></div>
+</section>
+
+<section id="checks">
+  <h2>Checks that fail closed <i>06</i></h2>
+  <p>Each check prints one fixed line when everything is at zero, and exits with an error otherwise. Claude keeps going until all of them pass.</p>
+  <table>
+    <thead><tr><th>Check</th><th>What it catches</th><th>Must print</th></tr></thead>
+    <tbody>
+      <tr><td>The kit’s audit</td><td>belts through machines or crossing, text on text, values too wide for their cells, disconnected machines, the clutter budget</td><td><span class="pass">audit passed</span></td></tr>
+      <tr><td><code>check.mjs</code></td><td>scripts, remote assets, broken references, motion outside the reduced-motion gate, too many colours, paragraphs on the canvas</td><td><span class="pass">svg check passed</span></td></tr>
+      <tr><td><code>check-sources.mjs</code></td><td>a station or caption pointing at a file or line that doesn’t exist at the recorded revision</td><td><span class="pass">sources: 0 unresolved</span></td></tr>
+      <tr><td><code>capture.mjs</code></td><td>freezes the animation at chosen moments and widths; fails if the still view differs from the last frame</td><td><span class="pass">capture done</span></td></tr>
+    </tbody>
+  </table>
+  <div class="n"><p>A zero audit is necessary, not sufficient. After the scripts pass, Claude opens every screenshot and takes close-ups of each dense junction, looking for what only a person would notice: a shape that doesn’t read as its structure, a route the eye has to hunt for.<sup>6</sup></p><aside><b>6</b>Every check is tested against a deliberately broken input first. A check that doesn’t fail on its planted fault is treated as broken.</aside></div>
+</section>
+
+<section id="before">
+  <h2>Before and after <i>07</i></h2>
+  <p>The first version of this skill drew velocitty by hand, as one large SVG. Every number in it was right. It was also a wall of text. The same request through the new skill:</p>
+  <table>
+    <thead><tr><th></th><th>Hand-drawn</th><th>Beltline</th></tr></thead>
+    <tbody>
+      <tr><td>Text at rest</td><td class="num">559 pieces</td><td class="num">69 pieces</td></tr>
+      <tr><td>Colours</td><td class="num">74</td><td class="num">24, one accent</td></tr>
+      <tr><td>Longest line</td><td class="num">263 characters</td><td class="num">96 at most</td></tr>
+      <tr><td>Sources checked</td><td class="num">none</td><td class="num">40, all resolved</td></tr>
+    </tbody>
+  </table>
+  <p>What it gave up is stated in the tour itself: the keyboard path, images and scrollback are listed as gaps in the footer, and Claude offered a separate tour for each.</p>
+</section>
+
+<section id="install">
+  <h2>Install <i>08</i></h2>
+  <p>Clone it into your skills folder. The kit and scripts need only Node; the screenshot checks also need Chrome or Chromium.</p>
+<pre class="sh"><span class="c"># Claude Code</span>
+git clone https://github.com/valvesky/beltline ~/.claude/skills/beltline
+
+<span class="c"># Codex</span>
+git clone https://github.com/valvesky/beltline ~/.codex/skills/beltline</pre>
+  <p>Requirements: Node 20 or newer. Chrome or Chromium for <code>capture.mjs</code>, found on the path or through <code>CHROME_PATH</code>. ImageMagick for contact sheets and the still-view comparison.</p>
+</section>
+
+<section id="limits">
+  <h2>Limits <i>09</i></h2>
+  <ol class="steps">
+    <li><span><strong>It is a walkthrough, not a recording.</strong> Values come from reading the source and its tests. Nothing in your project is built or run.</span></li>
+    <li><span><strong>A whole large program does not fit.</strong> Past about twenty-four machines, Claude draws an overview and offers a tour per subsystem.</span></li>
+    <li><span><strong>It plays once.</strong> An SVG shown as an image has no pause button, so playback holds its end state instead of looping. <span class="warn">No scrubbing yet.</span></span></li>
+    <li><span><strong>Small at phone width.</strong> At 390 pixels the shapes and route still read; the values need the full-size file.</span></li>
+  </ol>
+</section>
+
+<section id="questions">
+  <h2>Questions <i>10</i></h2>
+  <details><summary>Does it run my code?</summary><p>No. Claude reads source and tests, and runs only the skill’s own kit and checks.</p></details>
+  <details><summary>Why one SVG and not a web page?</summary><p>So it can live in a README, a pull request or docs as a plain image, with no scripts and no hosting. It follows the reader’s light or dark theme on its own.</p></details>
+  <details><summary>Can I change the tour afterwards?</summary><p>Yes. The build script is saved next to the SVG. Move a machine, edit a caption, rebuild, and the checks run again.</p></details>
+  <details><summary>What happens when the code changes?</summary><p>The tour records the revision it read. Run the source check against a newer revision and it lists every station whose line no longer holds up.</p></details>
+  <details><summary>Where did the name come from?</summary><p>It started as factorio.md, after the factory game whose belts inspired the look. Beltline keeps the idea and drops the borrowed name.</p></details>
+</section>
+
+<footer><span>Beltline · MIT</span><a href="https://github.com/valvesky/beltline">github.com/valvesky/beltline</a></footer>
+</main>
+</div>
+<script>
+(() => {
+  const links = [...document.querySelectorAll('nav a[href^="#"]')];
+  const map = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) {
+        links.forEach((a) => a.classList.remove("on"));
+        (map.get(e.target.id) ?? links[0]).classList.add("on");
+      }
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    document.querySelectorAll("section[id], main#top").forEach((s) => io.observe(s));
+  }
+  document.querySelectorAll(".copy").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(b.parentElement.querySelector("pre").innerText);
+      b.textContent = "Copied";
+    } catch {
+      b.textContent = "Select and copy";
+    }
+    setTimeout(() => (b.textContent = "Copy"), 1600);
+  }));
+})();
+</script>
+</body>
+</html>
