@@ -25,7 +25,7 @@ const F = factory({
 F.machine(id, { kind, at: [col, row], label, src: "path:line", symbol?, cells?, pointers?, ...kindOptions })
 ```
 
-- `kind`: one of `rack drum hopper stack hashmap lru heap deque bits grid graph counter arena tower selector cutter press plate chain record turnstile splitter fanout merge arm dock`. See `machines.md`. (`pigeonholes` is an old alias for `hashmap`.)
+- `kind`: one of `rack drum hopper stack hashmap lru heap deque bits grid graph counter arena btree trie tape page workers pool bucket timerwheel swapbuffer floormap tower selector cutter press plate chain record turnstile splitter fanout merge arm dock`. See `machines.md`. (`pigeonholes` is an old alias for `hashmap`.)
 - `label`: 28 characters or fewer, normally the symbol (`toRpn()`, `tokens[]`, `CircBuffer`).
 - `src`: required unless `external: true`. `symbol` is optional; `check-sources` looks for it near the line.
 - `cells`: the initial values. `""` is empty.
@@ -57,6 +57,15 @@ Options for each kind:
 | `graph` | `edges: [[from, to], …]`, `directed`, `radius` (default 44), `startAngle` (default -90), `cellW` |
 | `counter` | `cellW` (default 16) |
 | `arena` | `capacity` and `sizes` in units, `unit` (px, default 10) |
+| `btree` | `keys` (per node, default 3), `leaves` (default 3), `cellW` |
+| `trie` | `nodes: [[parent, "char"], …]` (root first, parent -1), `terminal: [indices]` |
+| `tape` | `cellW` (default 34); pointers sit above |
+| `page` | `slots` (default 3), `w`, `h`, `slotW` |
+| `workers`, `pool` | `cellW` |
+| `bucket` | `cols` (default 3) |
+| `timerwheel` | `radius`, `cellW` |
+| `swapbuffer` | `cols`, `rows`, `pixel` |
+| `floormap` | `cols`, `rows`, `cellSize` (default 30), `split: [bucket indices]`; pointers are entities |
 | `fanout`, `merge` | `w`, `h`. The bus is wired to every belt automatically. |
 | `arm` | `reach` to fix the total reach in px (default: just enough for its moves, at most `maxReach`, which defaults to 9 grid cells). Arms need no belts. |
 

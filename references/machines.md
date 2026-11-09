@@ -23,6 +23,16 @@ Belts never just touch a machine: each one enters through a dark slot.
 | Arena, bump allocator, slab, free space in a buffer | `arena` | memory bar of blocks sized by `sizes`, free tail dashed | one per block | `top` marks the next free offset from above |
 | Broadcast, pub/sub, event emitter, observer list | `fanout` | one inlet wired by a bus to every outlet | none | none: move items on all outlets in one step |
 | Join, merge, mux, `select` over channels, zip | `merge` | many inlets wired by a bus to one outlet | none | none |
+| B-tree, B+tree index | `btree` | root node of keys above leaf nodes, leaves linked for range scans | root keys, then each leaf's keys, `keys` per node | `at` frames the node the search is in |
+| Trie, radix tree, URL router, prefix index | `trie` | n-ary tree built from `nodes: [[parent, "char"], …]`, terminal nodes ringed | one per node, defaulting to its character | `at` walks the lookup |
+| Write-ahead log, append-only log, event store, Kafka partition | `tape` | film strip with an append head on the right | one record per frame | `lsn`, `commit`, `checkpoint` markers above |
+| Slotted page, heap page, row page | `page` | header, slot directory growing down, tuples growing up, free gap between | `slots` offsets first, then tuples from the bottom up | none |
+| Thread pool, worker pool, executor | `workers` | bank of workstations with gears between intake and output rails | the job each worker holds (`""` = idle) | none |
+| Object pool, connection pool, free list of objects | `pool` | rail of hooks; an empty hook means checked out | one object per hook | none |
+| Rate limiter, token bucket, leaky bucket, semaphore permits | `bucket` | bucket of token lamps under a refill tap | `"1"` token present, `""` taken | none |
+| Timer wheel, timeout scheduler, cron | `timerwheel` | clock face with timer slots on the rim | one per slot, up to 12 | `now` is the sweeping hand |
+| Double buffer, swap chain, front/back state | `swapbuffer` | two pixel panes with a swap lever | pane A pixels, then pane B | `front` frames the pane on screen |
+| Spatial grid, quadtree, broad-phase, tile map | `floormap` | board of buckets; `split` cells show quadtree subdivision | none | each entity is a named token that moves between buckets |
 | Tree, trie, B-tree page | `tower` | sorting tower with branching chutes | nodes in breadth-first order, up to 7 | none |
 | State machine, mode, parser state | `selector` | rotary dial with a needle, plus optional register cells | `name value` registers | `state` needle turns to the `states[]` index |
 | Tokenizer, lexer, splitter of a stream | `cutter` | guillotine over a slot | optional registers (`pos 3`) | none |

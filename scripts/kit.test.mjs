@@ -264,6 +264,10 @@ test("every machine kind renders and passes the audit on its own", () => {
     record: { cells: ["a 1"] }, turnstile: {}, splitter: {}, heap: { cells: ["1", "2", "3"] }, deque: { cells: ["a", ""] }, bits: { cells: ["1", "", "", ""] },
     grid: { cols: 2, cells: ["1", "2", "3", "4"] }, graph: { cells: ["A", "B", "C"], edges: [[0, 1], [1, 2]] }, counter: { cells: ["0", "1"] },
     arena: { capacity: 8, sizes: [2, 3], cells: ["a", ""] }, fanout: {}, merge: {}, dock: { external: true },
+    btree: { keys: 2, leaves: 2, cells: ["5", "", "1", "3", "5", "7"] }, trie: { nodes: [[-1, "·"], [0, "a"], [1, "b"]], terminal: [2] },
+    tape: { cellW: 40, cells: ["put", ""] }, page: { slots: 2, cells: ["@9", "", "a=1", ""] }, workers: { cells: ["r1", ""] },
+    pool: { cells: ["c1", ""] }, bucket: { cells: ["1", "1", ""] }, timerwheel: { cells: ["t1", "", "", ""] },
+    swapbuffer: { cols: 3, rows: 2 }, floormap: { cols: 3, rows: 2, pointers: { e: 1 } },
   };
   for (const kind of KINDS.filter((k) => k !== "arm")) {
     const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 40, rows: 14 })
@@ -302,4 +306,17 @@ test("a graph pointer walks from node to node", () => {
   assert.deepEqual(out.problems, []);
   assert.match(out.svg, /transform:translate\(-?[\d.]+px,-?[\d.]+px\)/);
   assert.equal((out.svg.match(/marker-end="url\(#bl-arrow\)"/g) ?? []).length, 2);
+});
+
+test("pointers that come to rest on the same slot stack their names instead of overprinting", () => {
+  const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 10 })
+    .machine("w", { kind: "tape", at: [1, 3], label: "log", src: "a.js:1", cellW: 40, cells: ["a", "b", ""], pointers: { lsn: 1, commit: 0 } })
+    .machine("o", { kind: "dock", at: [14, 3], label: "out", external: true })
+    .belt("w", "o")
+    .step({ at: "w", pointers: { w: { commit: 1 } } });
+  const out = quiet(F);
+  assert.deepEqual(out.problems, []);
+  const ys = [...out.svg.matchAll(/<text x="[\d.]+" y="([\d.]+)" class="ptr-t"[^>]*>(lsn|commit)</g)].map((m) => +m[1]);
+  assert.equal(ys.length, 2);
+  assert.notEqual(ys[0], ys[1]);
 });

@@ -12,7 +12,7 @@ jobs:
           node-version: 22
       - run: node --test scripts/*.test.mjs
       - run: node examples/calc/build.mjs && node examples/catalogue/build.mjs && node examples/velocitty/build.mjs
-      - run: node scripts/check.mjs examples/calc/beltline.svg && node scripts/check.mjs examples/catalogue/beltline.svg --max-texts 220 && node scripts/check.mjs examples/velocitty/beltline.svg
+      - run: node scripts/check.mjs examples/calc/beltline.svg && node scripts/check.mjs examples/catalogue/beltline.svg --max-texts 320 && node scripts/check.mjs examples/velocitty/beltline.svg
       - run: node scripts/check-sources.mjs examples/calc/beltline.svg examples/calc
       - run: git clone --quiet --filter=blob:none https://github.com/valvesky/velocitty "$RUNNER_TEMP/velocitty" && node scripts/check-sources.mjs examples/velocitty/beltline.svg "$RUNNER_TEMP/velocitty"
       - run: git diff --exit-code -- examples

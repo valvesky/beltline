@@ -10,6 +10,7 @@
 - Evals with a three-axis rubric (correctness, visual design, visual clarity) and two fixture repos.
 
 ### Changed (catalogue, from owner review)
+- Ten machines for databases, servers and game engines: `btree`, `trie`, `tape` (WAL), `page` (slotted page), `workers`, `pool`, `bucket` (token bucket), `timerwheel`, `swapbuffer` (double buffer) and `floormap` (spatial grid with moving entity tokens). Pointers resting on the same slot stack their names.
 - Nine more machines: `heap` (pyramid), `deque` (two-ended tube), `bits` (lamp strip for bitsets and bloom filters), `grid` (matrix and DP tables), `graph` (pegboard with a walking ring), `counter` (odometer), `arena` (bump allocator), and `fanout` and `merge` (bus wiring for broadcast and join). A step can move items along several belts at once.
 - Belts enter machines through visible slots.
 - New `arm`: a long double-jointed arm on a pedestal, solved with two-link inverse kinematics, that lifts a piece out of a cell, holds it while other cells shift, and sets it down. For moves that are the point of the code, such as LRU move-to-front and sorting.

@@ -5,8 +5,8 @@ const F = factory({
   subtitle: "Every kit machine with sample values. Illustrative, not a recording.",
   desc: "One of each machine kind in the Beltline kit, joined by belts. Inserter arms load and unload the stores, a diverter flap picks a route, a hash pointer finds a bucket, and an LRU moves a node to the front of its list.",
   cols: 50,
-  rows: 45,
-  maxTexts: 220,
+  rows: 62,
+  maxTexts: 320,
   writeOnFail: process.env.WOF === "1",
 });
 
@@ -83,6 +83,34 @@ F.step({ at: "deque", pointers: { deque: { front: 0 } }, writes: { deque: [[0, "
   .step({ belt: "graph->fan", item: "visit C", caption: "the visit is published as an event" })
   .step({ belt: ["fan->count", "fan->alloc"], item: "evt", writes: { count: [[2, "2"]], alloc: [[2, "evt"]] }, pointers: { alloc: { top: 3 } }, caption: "broadcast: every subscriber gets a copy; the counter ticks, the arena bumps" })
   .step({ belt: ["count->join", "alloc->join"], item: ["042", "evt"], caption: "merge: both streams join into one" })
-  .step({ belt: "join->sink", item: "042+evt", caption: "the joined result reaches the subscriber" });
+  .step({ belt: "join->sink", item: "042+evt", caption: "the joined result reaches the subscriber" })
+
+F.machine("wal", { kind: "tape", at: [1, 48], label: "write-ahead log", src, cellW: 46, cells: ["begin", "put a", "put b", "", ""], pointers: { ckpt: 0, lsn: 2, commit: 0 } })
+  .machine("page", { kind: "page", at: [15, 46], label: "slotted page", src, slots: 3, cells: ["@96", "@78", "", "a=1", "k=7", ""] })
+  .machine("btree", { kind: "btree", at: [23, 46], label: "B+tree", src, keys: 3, leaves: 3, cells: ["10", "20", "", "3", "7", "", "10", "14", "", "20", "25", ""], pointers: { at: 0 } })
+  .machine("trie", { kind: "trie", at: [38, 46], label: "trie · router", src, nodes: [[-1, "·"], [0, "c"], [0, "d"], [1, "a"], [1, "o"], [3, "r"], [3, "t"], [4, "w"], [2, "o"]], terminal: [5, 6, 7, 8], pointers: { at: 0 } })
+  .belt("wal", "page").belt("page", "btree").belt("btree", "trie");
+
+F.machine("pool", { kind: "pool", at: [1, 56], label: "connection pool", src, cells: ["c1", "c2", "c3", ""] })
+  .machine("workers", { kind: "workers", at: [10, 55], label: "worker pool", src, cells: ["req 7", "", ""] })
+  .machine("bucket", { kind: "bucket", at: [20, 56], label: "token bucket", src, cols: 3, cells: ["1", "1", "1", "1", "", ""] })
+  .machine("wheel", { kind: "timerwheel", at: [26, 55], label: "timer wheel", src, radius: 60, cells: ["", "t1", "", "", "t2", "", "", ""], pointers: { now: 0 } })
+  .machine("swap", { kind: "swapbuffer", at: [35, 56], label: "double buffer", src, cols: 5, rows: 4, cells: Array.from({ length: 40 }, (_, i) => ([6, 7, 8, 11, 13, 16, 17, 18].includes(i) ? "1" : "")), pointers: { front: 0 } })
+  .machine("floor", { kind: "floormap", at: [44, 55], label: "spatial grid", src, cols: 4, rows: 3, split: [6], pointers: { p1: 5, p2: 6, p3: 6 } })
+  .belt("pool", "workers").belt("workers", "bucket").belt("bucket", "wheel").belt("wheel", "swap").belt("swap", "floor");
+
+F.step({ at: "wal", pointers: { wal: { lsn: 3, commit: 3 } }, writes: { wal: [[3, "commit"]] }, caption: "WAL: commit is appended at the head and the commit mark moves up to it" })
+  .step({ belt: "wal->page", item: "put b", writes: { page: [[2, "@60"], [5, "b=2"]] }, caption: "slotted page: a new slot points at b=2, written from the bottom up" })
+  .step({ belt: "page->btree", item: "key 8", pointers: { btree: { at: 1 } }, caption: "B+tree: 8 < 10, so the search goes down the first child" })
+  .step({ at: "btree", writes: { btree: [[5, "8"]] }, caption: "8 lands in the first leaf, still in sorted order" })
+  .step({ belt: "btree->trie", item: "cat", pointers: { trie: { at: 1 } }, caption: "trie: looking up cat follows c" })
+  .step({ at: "trie", pointers: { trie: { at: 3 } }, caption: "then a, shared with car" })
+  .step({ at: "trie", pointers: { trie: { at: 6 } }, caption: "then t, a terminal node: cat is in the trie" })
+  .step({ belt: "pool->workers", item: "c2", writes: { pool: [[1, ""]], workers: [[1, "req 8"]] }, caption: "pool: a worker checks out connection c2 to serve request 8" })
+  .step({ belt: "workers->bucket", item: "req 9", writes: { bucket: [[3, ""]] }, caption: "token bucket: request 9 takes a token; three are left" })
+  .step({ belt: "bucket->wheel", item: "timeout", pointers: { wheel: { now: 2 } }, writes: { wheel: [[6, "t3"]] }, caption: "timer wheel: the hand ticks on and t3 is filed four slots ahead" })
+  .step({ belt: "wheel->swap", item: "frame", writes: { swap: [[[26, 27, 28, 31, 33, 36, 37, 38], "a"]] }, caption: "double buffer: the next frame is drawn into the back pane" })
+  .step({ at: "swap", pointers: { swap: { front: 1 } }, caption: "swap: the back pane becomes the one on screen" })
+  .step({ belt: "swap->floor", item: "move", pointers: { floor: { p1: 7 } }, caption: "spatial grid: p1 crosses into the next cell; the split cell holds two" });
 
 F.build(new URL("./beltline.svg", import.meta.url).pathname);
