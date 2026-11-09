@@ -2,11 +2,14 @@
 
 A skill for coding agents that turns a codebase into a factory tour: one standalone animated SVG where each data structure is a small machine shaped like its behaviour, and a real input rides the belts from entry to output. Every station links to its source line.
 
-![calc example](examples/calc/beltline.svg)
+[![velocitty: bytes from the PTY to pixels](examples/velocitty/beltline.svg)](examples/velocitty/beltline.svg)
 
-The image above is `examples/calc/`. It shows a tokenizer, a shunting-yard and a stack machine evaluating `2*(3+4)`, plus a rejected `2$`.
+The image above is `examples/velocitty/`: the [velocitty](https://github.com/valvesky/velocitty) terminal emulator, from a PTY read to pixels on screen.
+- Bytes stream into a ring buffer, a scanner cuts them into runs, and the VT sets a red pen and interns it as a style.
+- `é` misses the glyph LRU and is packed into the atlas before it reaches the framebuffer.
+- Every station links to its source at revision 2d5a1a4.
 
-For a real program, see `examples/velocitty/`: the [velocitty](https://github.com/valvesky/velocitty) terminal emulator, from a PTY read to pixels on screen, with every station linked to its source at revision 2d5a1a4.
+Open the image on its own to read the values and follow the links. For a smaller tour, see `examples/calc/`: a tokenizer, a shunting-yard and a stack machine evaluating `2*(3+4)`, plus a rejected `2$`.
 
 ## Install
 
