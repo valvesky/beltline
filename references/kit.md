@@ -77,6 +77,8 @@ F.signal(from, to, { id?, out?, in?, via?, label? })           // control; defau
 ```
 
 - `label` is for branch conditions only (`kind == num`, `free < cap/4`). Keep it short.
+- `carries: "chip" | "hex" | "crate" | "letter"` sets the default item shape on this belt.
+- `under: true` sends the belt underground where it crosses another belt (see `layout.md`).
 - `labelAt: [col, row]` pins the label when the automatic spot collides with something.
 
 ## Steps
@@ -104,6 +106,9 @@ F.step({                         // or lifts a piece out of a store onto an outg
   writes: { lru: [[1, ""]] },
 });
 F.step({ belt: ["fan->a", "fan->b"], item: ["x", "y"] });   // several belts at once (broadcast, concurrency)
+F.step({ belt: "pty->ring", stream: ["x", "1b", "[3"], gap: 0.34 });   // a batch: items spaced along one belt
+F.step({ belt: "lex->parse", item: "tok 2", with: "previous", delay: 0.4 });   // starts 0.4 s after the previous step starts (pipelining)
+F.step({ belt: "a->b", item: "0x1b", as: "chip" });  // item shape: pill (default), chip, hex, crate, letter
 F.trace("reject");               // following captions get the prefix "reject ·"
 ```
 
@@ -134,6 +139,9 @@ F.trace("reject");               // following captions get the prefix "reject ·
 | `needs src` | Add `path:line`, or `external: true` for a boundary with no first-party source. |
 | `over the clutter budget` | Cut cells, merge machines, drop the side lanes into a second tour. Do not raise `maxTexts` to get past it. Only text visible in the static end state counts; moving items and earlier captions and values do not. |
 | `caption line … with its prefix` | The `n/N` and `trace ·` prefixes count toward the limit. Shorten the caption or the trace name. |
+| `… cross; … mark one belt under: true` | Reroute, or send one belt underground. |
+| `… goes underground too close to a bend` | Give the underground belt a straight run of at least a grid cell on each side of the crossing. |
+| `item kind "…" is not one of …` | Use pill, chip, hex, crate or letter. |
 | `arm … moves a piece inside …` | Arms only move between a belt and a slot, or between two machines. Show moves inside a structure with writes. |
 | `arm … would need a …px reach` | Put the arm's pedestal next to the structure it moves. |
 | `arm … rests across text` / `rests over machine` | Move the pedestal; the arm folds away from its targets at rest. |

@@ -10,6 +10,9 @@
 - Evals with a three-axis rubric (correctness, visual design, visual clarity) and two fixture repos.
 
 ### Changed (factory feel, from owner review)
+- Arms in the catalogue now do what Factorio's filter inserters do: a mixed token stream runs past two arms that pick digits and operators into their bins (a partition). Arms pick at the point on the belt nearest them, and bins filled only by arms count as connected.
+- Streams (`stream`), pipelining (`with: "previous"`), underground belts (`under: true`) and item shapes (`as`/`carries`: chip, hex, crate, letter).
+- Rectangular machine bodies get corner bolts and a top highlight. Colour budgets count only direct colours, not theme tokens.
 - Arms now do the inserter's job: they take an arriving item off the end of a belt and set it in the exact slot, or lift a piece out of a store onto an outgoing belt. A move inside one structure is rejected; use writes. Arms pick a resting pose that clears every machine.
 - Belts have side rails and rollers that scroll during playback.
 - Machines visibly work while active or handling an item: the press stamps, the cutter chops, gears turn, the tap drips, the lever pulls.

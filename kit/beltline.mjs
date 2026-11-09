@@ -7,11 +7,11 @@ const LIMITS = { texts: 140, itemChars: 16, labelChars: 28, valueChars: 14, capt
 export const THEME = {
   light: {
     paper: "#f3f1ea", dot: "#d9d5c9", ink: "#2a2925", mid: "#76726a", lo: "#b8b3a6",
-    body: "#e6e2d7", cell: "#fbfaf6", belt: "#d3cebf", accent: "#d9731a", "accent-ink": "#ffffff", "accent-soft": "#f6dcc2", slot: "#3a3732",
+    body: "#e6e2d7", cell: "#fbfaf6", belt: "#d3cebf", accent: "#d9731a", "accent-ink": "#ffffff", "accent-soft": "#f6dcc2", slot: "#3a3732", hl: "#ffffff",
   },
   dark: {
     paper: "#191917", dot: "#2b2a26", ink: "#e7e3d8", mid: "#9b968a", lo: "#5b5850",
-    body: "#262521", cell: "#1e1d1a", belt: "#35332d", accent: "#f0943c", "accent-ink": "#1a1208", "accent-soft": "#4a3220", slot: "#0c0c0b",
+    body: "#262521", cell: "#1e1d1a", belt: "#35332d", accent: "#f0943c", "accent-ink": "#1a1208", "accent-soft": "#4a3220", slot: "#0c0c0b", hl: "#3d3b35",
   },
 };
 
@@ -46,6 +46,8 @@ function segsCross(a, b, c, d) {
 }
 
 const DIRS = { e: [1, 0], w: [-1, 0], s: [0, 1], n: [0, -1] };
+const ITEM_KINDS = ["pill", "chip", "hex", "crate", "letter"];
+const BOLTED = new Set(["rack", "hashmap", "pigeonholes", "lru", "selector", "cutter", "press", "plate", "record", "splitter", "dock", "heap", "bits", "grid", "graph", "counter", "arena", "fanout", "merge", "btree", "trie", "page", "workers", "pool", "swapbuffer", "floormap"]);
 
 function cellsRow(x, y, n, cw, ch, gap = 0) {
   return Array.from({ length: n }, (_, i) => ({ x: x + i * (cw + gap), y, w: cw, h: ch }));
@@ -738,9 +740,10 @@ export function factory(opts) {
     return { x: a[0] + 10, y: my - th / 2, w: tw, h: th, anchor: "start" };
   }
 
+  const armTouched = new Set();
   function compile() {
     const timeline = [];
-    let t = 0.6, traceLabel = null, n = 0;
+    let t = 0.6, traceLabel = null, n = 0, lastStep = null;
     const total = steps.filter((s) => !s.trace).length;
     for (const s of steps) {
       if (s.trace) {
@@ -748,6 +751,8 @@ export function factory(opts) {
         continue;
       }
       n++;
+      if (s.with === "previous" && lastStep) t = lastStep.start + (s.delay ?? 0.35);
+      else if (s.with && s.with !== "previous") fail(`step ${n}: with must be "previous"`);
       const start = t;
       const stepItems = [];
       const runBelts = () => {
@@ -765,16 +770,24 @@ export function factory(opts) {
           if (!e.pts) return;
           const dur = Math.max(0.6, e.len / (opts.speed ?? 170));
           longest = Math.max(longest, dur);
-          const item = items[k];
-          if (item != null) {
-            if (String(item).length > LIMITS.itemChars) fail(`step ${n}: item "${item}" is longer than ${LIMITS.itemChars} chars; show the shape, put detail in the caption`);
-            const tl = { type: "item", e, item, t0: t, t1: t + dur };
-            timeline.push(tl);
-            stepItems.push(tl);
-            const src0 = machines.get(e.from), dst0 = machines.get(e.to);
-            if (src0?.geo.work) (src0.workWin ??= []).push([Math.max(0.05, t - 0.7), t]);
-            if (dst0?.geo.work) (dst0.workWin ??= []).push([t + dur, t + dur + 0.8]);
-          } else timeline.push({ type: "pulse", e, t0: t, t1: t + dur });
+          const stream = s.stream && ids.length === 1 ? s.stream : null;
+          const list = stream ?? [items[k]];
+          const gap = s.gap ?? 0.34;
+          if (stream) longest = Math.max(longest, dur + (stream.length - 1) * gap);
+          const kind = s.as ?? e.carries ?? "pill";
+          if (!ITEM_KINDS.includes(kind)) fail(`step ${n}: item kind "${kind}" is not one of ${ITEM_KINDS.join(", ")}`);
+          list.forEach((item, q) => {
+            const t0 = t + q * gap;
+            if (item != null) {
+              if (String(item).length > LIMITS.itemChars) fail(`step ${n}: item "${item}" is longer than ${LIMITS.itemChars} chars; show the shape, put detail in the caption`);
+              const tl = { type: "item", e, item, kind, t0, t1: t0 + dur };
+              timeline.push(tl);
+              stepItems.push(tl);
+              const src0 = machines.get(e.from), dst0 = machines.get(e.to);
+              if (src0?.geo.work) (src0.workWin ??= []).push([Math.max(0.05, t0 - 0.7), t0]);
+              if (dst0?.geo.work) (dst0.workWin ??= []).push([t0 + dur, t0 + dur + 0.8]);
+            } else timeline.push({ type: "pulse", e, t0, t1: t0 + dur });
+          });
         });
         if (bad) return false;
         t += longest;
@@ -804,13 +817,33 @@ export function factory(opts) {
             fail(`step ${n}: arm ${A.id} moves a piece inside ${mv.from[0]}; arms move pieces between a belt and a slot or between two machines, so show this with writes`);
             return;
           }
-          const fromPt = fb ? (fb.pts ? pointAt(fb.pts, Math.max(0, fb.len - 18)) : null) : [fc.x + fc.w / 2, fc.y + fc.h / 2];
+          let pickAt = null;
+          if (fb?.pts) {
+            const { cx: ax, cy: ay } = A.geo.armBase;
+            let best = null, run = 0;
+            for (let q = 1; q < fb.pts.length; q++) {
+              const [p0, p1] = [fb.pts[q - 1], fb.pts[q]];
+              const L = Math.abs(p1[0] - p0[0]) + Math.abs(p1[1] - p0[1]);
+              const f = L ? Math.max(0, Math.min(1, ((ax - p0[0]) * (p1[0] - p0[0]) + (ay - p0[1]) * (p1[1] - p0[1])) / (L * L))) : 0;
+              const px = p0[0] + (p1[0] - p0[0]) * f, py = p0[1] + (p1[1] - p0[1]) * f, dd = Math.hypot(px - ax, py - ay);
+              if (!best || dd < best.dd) best = { dd, at: Math.min(fb.len - 14, Math.max(14, run + L * f)) };
+              run += L;
+            }
+            pickAt = best.at;
+          }
+          const fromPt = fb ? (fb.pts ? pointAt(fb.pts, pickAt) : null) : [fc.x + fc.w / 2, fc.y + fc.h / 2];
           const toPt = tb ? (tb.pts ? pointAt(tb.pts, Math.min(18, tb.len)) : null) : [tc.x + tc.w / 2, tc.y + tc.h / 2];
           if (!fromPt || !toPt) return;
           const arriving = fb ? stepItems.find((tl) => tl.e === fb) : null;
+          if (arriving && i === 0) {
+            arriving.stopAt = pickAt;
+            arriving.t1 = arriving.t0 + (arriving.t1 - arriving.t0) * (pickAt / fb.len);
+            tt = Math.max(arriving.t0 + 0.1, arriving.t1 - 0.5);
+          }
+          for (const ref of [mv.from, mv.to]) if (Array.isArray(ref)) armTouched.add(ref[0]);
           const value = mv.value ?? (fc ? valueAt(fc) : arriving?.item ?? "");
           if (String(value).length > LIMITS.itemChars) fail(`step ${n}: arm carries "${value}", longer than ${LIMITS.itemChars} chars`);
-          const reach = tt + 0.5, grip = reach + 0.2, hold = i === 0 ? nHeld * 0.22 : 0, drop = grip + 0.75 + hold, after = drop + 0.2;
+          const reach = tt + 0.5, grip = Math.max(reach + 0.2, (arriving?.t1 ?? 0) + 0.05), hold = i === 0 ? nHeld * 0.22 : 0, drop = grip + 0.75 + hold, after = drop + 0.2;
           if (arriving) arriving.hold = grip;
           if (fc && mv.clear !== false) fc.events.push({ t: grip, v: "" });
           if (i === 0) {
@@ -894,7 +927,14 @@ export function factory(opts) {
       const capText = `${traceLabel ? traceLabel + " · " : ""}${s.caption ?? ""}`;
       const shown = `${n}/${total} ${capText}`;
       if (shown.length > LIMITS.captionChars) fail(`step ${n}: the caption line "${shown.slice(0, 40)}…" is ${shown.length} chars with its prefix (max ${LIMITS.captionChars})`);
-      timeline.push({ type: "caption", n, total, text: capText, t0: start, t1: t, src: s.src });
+      const cap = { type: "caption", n, total, text: capText, t0: start, t1: t, src: s.src };
+      if (s.with === "previous" && lastStep) {
+        lastStep.cap.t1 = Math.min(lastStep.cap.t1, start - 0.2);
+        t = Math.max(t, lastStep.end);
+        cap.t1 = t;
+      }
+      timeline.push(cap);
+      lastStep = { start, end: t, cap };
       t += 0.15;
     }
     return { timeline, T: t + 0.4 };
@@ -939,7 +979,7 @@ export function factory(opts) {
     const boxes = [];
     const texts = [];
     const addText = (box, owner, what) => texts.push({ ...box, owner, what });
-    let svgUnder = "", svgPorts = "", svgArms = "", svgMachines = "", svgCells = "", svgBelts = "", svgSignals = "", svgLabels = "", svgItems = "", svgHot = "";
+    let svgUnderBelts = "", svgGround = "", svgUnder = "", svgPorts = "", svgArms = "", svgMachines = "", svgCells = "", svgBelts = "", svgSignals = "", svgLabels = "", svgItems = "", svgHot = "";
 
     for (const A of machines.values()) {
       if (A.kind !== "arm") continue;
@@ -978,6 +1018,11 @@ export function factory(opts) {
       if (!m.src && !m.external) fail(`machine ${m.id}: needs src "path:line" (or external: true for a boundary)`);
       const href = m.src && opts.baseUrl ? `${opts.baseUrl}${m.src.replace(/:(\d+)$/, "#L$1")}` : null;
       let inner = g.svg;
+      if (BOLTED.has(m.kind)) {
+        const b = g.body;
+        inner += `<path d="M${r1(b.x + 5)} ${r1(b.y + 1.6)}H${r1(b.x + b.w - 5)}" class="bevel"/>`;
+        for (const [bx, by] of [[b.x + 3.6, b.y + 3.6], [b.x + b.w - 3.6, b.y + 3.6], [b.x + 3.6, b.y + b.h - 3.6], [b.x + b.w - 3.6, b.y + b.h - 3.6]]) inner += `<circle cx="${r1(bx)}" cy="${r1(by)}" r="1.25" class="bolt"/>`;
+      }
       for (const d of g.idx ?? []) inner += text(d.x, d.y, d.s, "idx-n", "middle", ` dominant-baseline="central"`);
       for (const d of g.ends ?? []) {
         inner += text(d.x, d.y, d.s, "end-t", "middle");
@@ -1234,12 +1279,15 @@ export function factory(opts) {
       }
       if (e.kind === "belt") {
         const travel = Math.max(12, Math.round((T * 34) / 12) * 12);
-        svgBelts += `<path d="${pathD(e.pts)}" class="belt-rail"/><path d="${pathD(e.pts)}" class="belt" data-edge="${esc(e.id)}" data-from="${esc(e.from)}" data-to="${esc(e.to)}"/><path d="${pathD(e.pts)}" class="belt-roll"${animAttr([[0, "stroke-dashoffset:0px"], [T, `stroke-dashoffset:-${travel}px`]])}/>`;
+        let beltSvg = "";
+        beltSvg += `<path d="${pathD(e.pts)}" class="belt-rail"/><path d="${pathD(e.pts)}" class="belt" data-edge="${esc(e.id)}" data-from="${esc(e.from)}" data-to="${esc(e.to)}"/><path d="${pathD(e.pts)}" class="belt-roll"${animAttr([[0, "stroke-dashoffset:0px"], [T, `stroke-dashoffset:-${travel}px`]])}/>`;
         for (let d = 22; d < e.len - 14; d += 44) {
           const p = pointAt(e.pts, d), q = pointAt(e.pts, d + 1);
           const ang = Math.atan2(q[1] - p[1], q[0] - p[0]) * (180 / Math.PI);
-          svgBelts += `<path d="M-3 -3.5L1.5 0L-3 3.5" class="chev" transform="translate(${r1(p[0])} ${r1(p[1])}) rotate(${r1(ang)})"/>`;
+          beltSvg += `<path d="M-3 -3.5L1.5 0L-3 3.5" class="chev" transform="translate(${r1(p[0])} ${r1(p[1])}) rotate(${r1(ang)})"/>`;
         }
+        if (e.under) svgUnderBelts += beltSvg;
+        else svgBelts += beltSvg;
         for (const [pt, side] of [[e.p0, e.outSide], [e.p1, e.inSide]]) {
           const hz = side === "e" || side === "w";
           svgPorts += rect(pt[0] - (hz ? 3 : 8), pt[1] - (hz ? 8 : 3), hz ? 6 : 16, hz ? 16 : 6, "mouth", 1.5);
@@ -1252,9 +1300,32 @@ export function factory(opts) {
     for (let i = 0; i < edgeSegs.length; i++) for (let j = i + 1; j < edgeSegs.length; j++) {
       const s = edgeSegs[i], u = edgeSegs[j];
       if (s.e === u.e) continue;
-      if (segsCross(s.a, s.b, u.a, u.b)) fail(`${s.e.kind} ${s.e.id} and ${u.e.kind} ${u.e.id} cross; reroute with via points (crossings read as joints)`);
+      if (!segsCross(s.a, s.b, u.a, u.b)) continue;
+      const under = s.e.kind === "belt" && u.e.kind === "belt" && !!s.e.under !== !!u.e.under ? (s.e.under ? s : u) : null;
+      if (!under) {
+        fail(`${s.e.kind} ${s.e.id} and ${u.e.kind} ${u.e.id} cross; reroute with via points, or mark one belt under: true to send it underground`);
+        continue;
+      }
+      const over = under === s ? u : s;
+      const hz = under.a[1] === under.b[1];
+      const cx = hz ? over.a[0] : under.a[0], cy = hz ? under.a[1] : over.a[1];
+      const room = (seg, p) => Math.min(Math.abs(p - (seg.a[0] === seg.b[0] ? seg.a[1] : seg.a[0])), Math.abs(p - (seg.a[0] === seg.b[0] ? seg.b[1] : seg.b[0])));
+      if (room(under, hz ? cx : cy) < 22 || room(over, hz ? cy : cx) < 14) fail(`belt ${under.e.id} goes underground too close to a bend; give it at least a grid cell of straight belt on each side of ${over.e.id}`);
+      const H = 17;
+      svgGround += hz ? rect(cx - H + 4, cy - 8, 2 * H - 8, 16, "ground") : rect(cx - 8, cy - H + 4, 16, 2 * H - 8, "ground");
+      for (const sgn of [-1, 1]) svgGround += hz ? rect(cx + sgn * H - 4, cy - 8, 8, 16, "hood", 2) : rect(cx - 8, cy + sgn * H - 4, 16, 8, "hood", 2);
+      let along = 0;
+      for (let k = 1; k < under.e.pts.length; k++) {
+        const p0 = under.e.pts[k - 1], p1 = under.e.pts[k];
+        if (p0 === under.a && p1 === under.b) {
+          along += Math.abs((hz ? cx : cy) - (hz ? p0[0] : p0[1]));
+          break;
+        }
+        along += Math.abs(p1[0] - p0[0]) + Math.abs(p1[1] - p0[1]);
+      }
+      (under.e.tunnels ??= []).push([along - H, along + H]);
     }
-    for (const m of machines.values()) if (!connected.has(m.id) && m.kind !== "arm") fail(`machine ${m.id} has no belt or signal; connect it or remove it`);
+    for (const m of machines.values()) if (!connected.has(m.id) && !armTouched.has(m.id) && m.kind !== "arm") fail(`machine ${m.id} has no belt or signal; connect it or remove it`);
 
     for (const tl of timeline) {
       if (tl.type === "item") {
@@ -1262,14 +1333,34 @@ export function factory(opts) {
         const frames = [[0, "opacity:0"], [tl.t0, "opacity:0"], [tl.t0 + FADE, "opacity:1"]];
         const dur = tl.t1 - tl.t0;
         let acc = 0;
-        tl.e.pts.forEach((p, k) => {
-          if (k) acc += Math.abs(p[0] - tl.e.pts[k - 1][0]) + Math.abs(p[1] - tl.e.pts[k - 1][1]);
-          frames.push([tl.t0 + (acc / tl.e.len) * dur, `transform:translate(${r1(p[0])}px,${r1(p[1])}px)`]);
-        });
+        const stop = tl.stopAt ?? tl.e.len;
+        for (let k = 0; k < tl.e.pts.length; k++) {
+          const p = tl.e.pts[k];
+          const next = k ? acc + Math.abs(p[0] - tl.e.pts[k - 1][0]) + Math.abs(p[1] - tl.e.pts[k - 1][1]) : 0;
+          if (next >= stop - 0.01) {
+            const q = pointAt(tl.e.pts, stop);
+            frames.push([tl.t1, `transform:translate(${r1(q[0])}px,${r1(q[1])}px)`]);
+            break;
+          }
+          acc = next;
+          frames.push([tl.t0 + (acc / stop) * dur, `transform:translate(${r1(p[0])}px,${r1(p[1])}px)`]);
+        }
         frames.splice(1, 0, [0, `transform:translate(${r1(tl.e.pts[0][0])}px,${r1(tl.e.pts[0][1])}px)`]);
+        for (const [d0, d1] of tl.e.tunnels ?? []) {
+          if (d1 > stop) continue;
+          const ta = tl.t0 + (d0 / stop) * dur, tb = tl.t0 + (d1 / stop) * dur;
+          frames.push([ta, "opacity:1"], [ta + 0.05, "opacity:0"], [tb - 0.05, "opacity:0"], [tb, "opacity:1"]);
+        }
         const gone = tl.hold ?? tl.t1;
         frames.push([gone, "opacity:1"], [gone + FADE, "opacity:0"]);
-        svgItems += `<g class="item" opacity="0"${animAttr(frames)}>${rect(-w / 2, -9, w, 18, "item-b", 9)}${text(0, 0, tl.item, "item-t", "middle", ` dominant-baseline="central"`)}</g>`;
+        const kindSvg = {
+          pill: rect(-w / 2, -9, w, 18, "item-b", 9),
+          chip: rect(-w / 2 + 2, -8, w - 4, 16, "item-b", 2),
+          hex: `<path d="M${r1(-w / 2)} 0L${r1(-w / 2 + 6)} -9H${r1(w / 2 - 6)}L${r1(w / 2)} 0L${r1(w / 2 - 6)} 9H${r1(-w / 2 + 6)}Z" class="item-b"/>`,
+          crate: rect(-w / 2, -10, w, 20, "item-b", 1.5) + `<path d="M${r1(-w / 2 + 3)} -10v20M${r1(w / 2 - 3)} -10v20" class="slat"/>`,
+          letter: rect(-w / 2, -9, w, 18, "item-b", 1.5) + `<path d="M${r1(-w / 2)} -9L0 -3L${r1(w / 2)} -9" class="flap-l"/>`,
+        }[tl.kind ?? "pill"];
+        svgItems += `<g class="item item-${tl.kind ?? "pill"}" opacity="0"${animAttr(frames)}>${kindSvg}${text(0, tl.kind === "letter" ? 2 : 0, tl.item, "item-t", "middle", ` dominant-baseline="central"`)}</g>`;
       } else if (tl.type === "pulse") {
         svgItems += `<path d="${pathD(tl.e.pts)}" class="pulse" opacity="0"${animAttr(windows([[tl.t0, tl.t1]]))}/>`;
       }
@@ -1472,7 +1563,8 @@ export function factory(opts) {
 .lbl{font-size:11px;font-weight:600;fill:var(--mid);letter-spacing:.02em}
 .cond{font-size:10px;font-style:italic;fill:var(--mid)}.sig-t{font-size:10px;fill:var(--mid)}
 .belt-rail{fill:none;stroke:var(--lo);stroke-width:12;stroke-linejoin:round}.belt{fill:none;stroke:var(--belt);stroke-width:9;stroke-linejoin:round}.belt-roll{fill:none;stroke:var(--lo);stroke-width:7;stroke-dasharray:1.6 10.4;opacity:.75}.chev{fill:none;stroke:var(--lo);stroke-width:1.4}
-.mouth{fill:var(--slot)}.nodebox{fill:none;stroke:var(--ink);stroke-width:1.2}.tape{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.hole{fill:var(--paper);stroke:var(--lo);stroke-width:.6}
+.mouth{fill:var(--slot)}.ground{fill:var(--paper)}.hood{fill:var(--slot)}.bolt{fill:var(--mid)}.bevel{stroke:var(--hl);stroke-width:1.4;stroke-linecap:round;opacity:.8}
+.slat{stroke:var(--accent-ink);stroke-width:1.2;opacity:.55}.flap-l{fill:none;stroke:var(--accent-ink);stroke-width:1.2;opacity:.6}.nodebox{fill:none;stroke:var(--ink);stroke-width:1.2}.tape{fill:var(--body);stroke:var(--ink);stroke-width:1.2}.hole{fill:var(--paper);stroke:var(--lo);stroke-width:.6}
 .rail{stroke:var(--mid);stroke-width:2.2;stroke-linecap:round}.gear{fill:var(--body);stroke:var(--ink);stroke-width:1.4}.tooth{stroke:var(--ink);stroke-width:2}.hook{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round}
 .tap{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round}.drip{fill:var(--accent)}.bucket{fill:var(--body);stroke:var(--ink);stroke-width:1.4;stroke-linejoin:round}
 .split{stroke:var(--mid);stroke-width:1;stroke-dasharray:2 2}.token{fill:var(--accent);stroke:var(--ink);stroke-width:1}.token-t{font-size:8px;font-weight:700;fill:var(--accent-ink)}.bus{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}.hub-dot{fill:var(--accent);stroke:var(--ink);stroke-width:1.2}
@@ -1507,7 +1599,7 @@ ${animated.map((a) => `#${a.id}{animation-name:${a.name}}`).join("")}
 ${text(G, 28, opts.title, "ttl", "start")}
 ${text(G, 47, opts.subtitle ?? "", "sub", "start")}
 <path d="M0 ${HEAD + floorH + 0.5}H${W}" class="rule"/>
-<g class="belts">${svgBelts}</g>
+<g class="belts">${svgUnderBelts}${svgGround}${svgBelts}</g>
 <g class="signals">${svgSignals}</g>
 <g class="hot-g">${svgHot}</g>
 <g class="machines">${svgMachines}</g>
@@ -1523,7 +1615,7 @@ ${text(G, 47, opts.subtitle ?? "", "sub", "start")}
 <g class="gaps">${svgGaps}</g>
 </svg>
 `;
-    const nTexts = (svg.match(/<text\b/g) ?? []).length - (svg.match(/<text\b[^>]*\bopacity="0"/g) ?? []).length - (svg.match(/<g class="item" opacity="0"/g) ?? []).length;
+    const nTexts = (svg.match(/<text\b/g) ?? []).length - (svg.match(/<text\b[^>]*\bopacity="0"/g) ?? []).length - (svg.match(/<g class="item[^"]*" opacity="0"/g) ?? []).length;
     if (nTexts > (opts.maxTexts ?? LIMITS.texts)) fail(`${nTexts} visible text elements is over the clutter budget of ${opts.maxTexts ?? LIMITS.texts}; cut cells, shorten traces or split the tour`);
     return { svg, texts: nTexts, duration: T, problems };
   }

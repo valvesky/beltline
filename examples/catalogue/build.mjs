@@ -5,7 +5,7 @@ const F = factory({
   subtitle: "Every kit machine with sample values. Illustrative, not a recording.",
   desc: "One of each machine kind in the Beltline kit, joined by belts. Inserter arms load and unload the stores, a diverter flap picks a route, a hash pointer finds a bucket, and an LRU moves a node to the front of its list.",
   cols: 50,
-  rows: 62,
+  rows: 72,
   maxTexts: 320,
   writeOnFail: process.env.WOF === "1",
 });
@@ -24,8 +24,6 @@ F.machine("lru", { kind: "lru", at: [1, 10], label: "LRU cache", src, buckets: 3
   .machine("list", { kind: "chain", at: [26, 11], label: "doubly linked list", labelSide: "n", src, doubly: true, cells: ["n1", "n2", "n3"] })
   .machine("rec", { kind: "record", at: [36, 10], label: "struct · registers", src, cells: ["head 11", "tail 7", "dirty yes"] });
 
-F.machine("loader", { kind: "arm", at: [28, 6], label: "arm", src })
-  .machine("evictor", { kind: "arm", at: [11, 15], label: "arm", src });
 
 F.machine("sel", { kind: "selector", at: [1, 20], label: "state machine", src, states: ["idle", "esc", "csi", "osc"], cells: ["mode esc", "params 0"], cellW: 70, pointers: { state: 1 } })
   .machine("cut", { kind: "cutter", at: [11, 20], label: "tokenizer · parser", src, cells: ["pos 3"], cellW: 50 })
@@ -41,12 +39,12 @@ F.belt("sel", "cut").belt("cut", "split")
   .belt("split", "lock", { out: "s", in: "w", label: "else" })
   .belt("press", "plate");
 
-F.step({ belt: "rack->drum", item: "9", caption: "a value leaves the rack on its belt" })
+F.step({ belt: "rack->drum", stream: ["9", "4", "1"], as: "chip", caption: "a stream of byte chips leaves the rack" })
   .step({ at: "drum", writes: { drum: [[2, "c"]] }, pointers: { drum: { tail: 3 } }, caption: "ring buffer: c lands in the tail sector and the tail arm turns" })
-  .step({ belt: "stack->map", item: "k3:10", arm: "loader", moves: [{ from: "belt", to: ["map", 2] }], pointers: { map: { h: 2 } }, caption: "hash map: h(k3) = 2, so the arm takes k3 off the belt and drops it in bucket 2" })
+  .step({ belt: "stack->map", item: "k3:10", pointers: { map: { h: 2 } }, writes: { map: [[2, "k3:10"]] }, caption: "hash map: h(k3) = 2, so k3 lands in bucket 2" })
   .step({ at: "lru", pointers: { lru: { h: 0 } }, caption: "LRU: get(a) hashes to bucket 0 and finds node 2" })
   .step({ at: "lru", writes: { lru: [[3, "a"], [4, "c"], [5, "b"]] }, caption: "a hit relinks a to the MRU end; nothing is copied" })
-  .step({ arm: "evictor", moves: [{ from: ["lru", 5], to: "lru->tower" }], writes: { lru: [[1, ""]] }, belt: "lru->tower", item: "b", caption: "the cache is full: the arm lifts the LRU entry b out onto the belt" })
+  .step({ at: "lru", writes: { lru: [[5, ""], [1, ""]] }, caption: "the cache is full: the LRU entry b is evicted and its bucket cleared" })
   .step({ belt: "cut->split", item: "42", caption: "the tokenizer cuts a number and hands it to the branch" })
   .step({ belt: "split->press", item: "num 42", caption: "branch: kind == num, so the flap swings to the upper route" })
   .step({ belt: "press->plate", item: "glyph", writes: { plate: [[[11, 12], "a"]] }, caption: "the press renders a glyph and the plate is painted" })
@@ -106,11 +104,29 @@ F.step({ at: "wal", pointers: { wal: { lsn: 3, commit: 3 } }, writes: { wal: [[3
   .step({ belt: "btree->trie", item: "cat", pointers: { trie: { at: 1 } }, caption: "trie: looking up cat follows c" })
   .step({ at: "trie", pointers: { trie: { at: 3 } }, caption: "then a, shared with car" })
   .step({ at: "trie", pointers: { trie: { at: 6 } }, caption: "then t, a terminal node: cat is in the trie" })
-  .step({ belt: "pool->workers", item: "c2", writes: { pool: [[1, ""]], workers: [[1, "req 8"]] }, caption: "pool: a worker checks out connection c2 to serve request 8" })
-  .step({ belt: "workers->bucket", item: "req 9", writes: { bucket: [[3, ""]] }, caption: "token bucket: request 9 takes a token; three are left" })
+  .step({ belt: "pool->workers", item: "c2", as: "crate", writes: { pool: [[1, ""]], workers: [[1, "req 8"]] }, caption: "pool: a worker checks out connection c2 to serve request 8" })
+  .step({ belt: "workers->bucket", item: "req 9", as: "letter", writes: { bucket: [[3, ""]] }, caption: "token bucket: request 9 takes a token; three are left" })
   .step({ belt: "bucket->wheel", item: "timeout", pointers: { wheel: { now: 2 } }, writes: { wheel: [[6, "t3"]] }, caption: "timer wheel: the hand ticks on and t3 is filed four slots ahead" })
   .step({ belt: "wheel->swap", item: "frame", writes: { swap: [[[26, 27, 28, 31, 33, 36, 37, 38], "a"]] }, caption: "double buffer: the next frame is drawn into the back pane" })
   .step({ at: "swap", pointers: { swap: { front: 1 } }, caption: "swap: the back pane becomes the one on screen" })
-  .step({ belt: "swap->floor", item: "move", pointers: { floor: { p1: 7 } }, caption: "spatial grid: p1 crosses into the next cell; the split cell holds two" });
+  .step({ belt: "swap->floor", item: "move", pointers: { floor: { p1: 7 } }, caption: "spatial grid: p1 crosses into the next cell; the split cell holds two" })
+
+F.machine("mixed", { kind: "dock", at: [1, 64], label: "token stream", external: true })
+  .machine("rest", { kind: "dock", at: [44, 64], label: "everything else", external: true, cells: [""], cellW: 30 })
+  .machine("digits", { kind: "rack", at: [6, 69], label: "digits", src, cells: ["", "", "", ""] })
+  .machine("ops", { kind: "rack", at: [22, 69], label: "operators", src, cells: ["", "", "", ""] })
+  .machine("armDigits", { kind: "arm", at: [10, 66], label: "filter: digit", src })
+  .machine("armOps", { kind: "arm", at: [26, 66], label: "filter: op", labelSide: "w", src })
+  .machine("parser", { kind: "press", at: [31, 61], label: "parser", src })
+  .belt("mixed", "rest", { carries: "hex" })
+  .belt("ops", "parser", { out: "n", in: "s", under: true, via: [[32.2, 68]], carries: "hex" });
+
+F.trace("sorting")
+  .step({ belt: "mixed->rest", item: "3", arm: "armDigits", moves: [{ from: "belt", to: ["digits", 0] }], caption: "the digit arm lifts 3 off the passing belt into its bin" })
+  .step({ belt: "mixed->rest", item: "+", arm: "armOps", moves: [{ from: "belt", to: ["ops", 0] }], with: "previous", delay: 1.1, caption: "pipelined: + is already on the belt, and the operator arm takes it" })
+  .step({ belt: "mixed->rest", item: "7", arm: "armDigits", moves: [{ from: "belt", to: ["digits", 1] }], with: "previous", delay: 1.1, caption: "7 follows into the digits bin" })
+  .step({ belt: "mixed->rest", item: "(", writes: { rest: [[0, "("]] }, with: "previous", delay: 1.1, caption: "( matches no filter, so it rides to the end of the line" })
+  .step({ belt: "mixed->rest", item: "*", arm: "armOps", moves: [{ from: "belt", to: ["ops", 1] }], with: "previous", delay: 1.1, caption: "* goes to the operators bin: the stream is partitioned" })
+  .step({ belt: "ops->parser", item: "+", writes: { ops: [[0, ""]] }, caption: "operators ship to the parser on a belt that tunnels under the main line" });
 
 F.build(new URL("./beltline.svg", import.meta.url).pathname);

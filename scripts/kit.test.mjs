@@ -177,7 +177,7 @@ test("an arm takes an item off a belt and sets it into the exact slot", () => {
   assert.deepEqual(out.problems, []);
   assert.equal((out.svg.match(/class="arm-seg"/g) ?? []).length, 2);
   assert.match(out.svg, /class="val val-w" text-anchor="middle" dominant-baseline="central"( id="[^"]+")?>3<\/text>/);
-  const item = out.svg.match(/<g class="item" opacity="0" id="(bl-a\d+)">/);
+  const item = out.svg.match(/<g class="item[^"]*" opacity="0" id="(bl-a\d+)">/);
   const kf = out.svg.match(new RegExp(`#${item[1]}\\{animation-name:(k\\d+)\\}`))[1];
   const body = out.svg.match(new RegExp(`@keyframes ${kf}\\{([^\\n]+)\\}`))[1];
   const lastMove = Math.max(...[...body.matchAll(/([\d.]+)%\{[^}]*transform/g)].map((m) => +m[1]));
@@ -301,7 +301,7 @@ test("a step can move items along several belts at once", () => {
     .step({ belt: ["f->a", "f->b"], item: ["x", "y"], caption: "both" });
   const out = quiet(F);
   assert.deepEqual(out.problems, []);
-  const starts = [...out.svg.matchAll(/<g class="item" opacity="0" id="(bl-a\d+)">/g)].map((m) => out.svg.match(new RegExp(`#${m[1]}\\{animation-name:(k\\d+)\\}`))[1]).map((k) => out.svg.match(new RegExp(`@keyframes ${k}\\{([^\\n]+)\\}`))[1].match(/([\d.]+)%\{opacity:1/)[1]);
+  const starts = [...out.svg.matchAll(/<g class="item[^"]*" opacity="0" id="(bl-a\d+)">/g)].map((m) => out.svg.match(new RegExp(`#${m[1]}\\{animation-name:(k\\d+)\\}`))[1]).map((k) => out.svg.match(new RegExp(`@keyframes ${k}\\{([^\\n]+)\\}`))[1].match(/([\d.]+)%\{opacity:1/)[1]);
   assert.equal(starts.length, 2);
   assert.equal(starts[0], starts[1], "the two items do not leave together");
   assert.equal((out.svg.match(/class="bus"/g) ?? []).length, 2);
@@ -335,4 +335,92 @@ test("pointers that come to rest on the same slot stack their names instead of o
 test("resting rotations are inline CSS, never a transform attribute that transform-origin would offset twice", () => {
   const out = quiet(armTour().step({ belt: "src->r", item: "3", arm: "bot", moves: [{ from: "belt", to: ["r", 1] }] }));
   assert.doesNotMatch(out.svg, /transform="rotate\(/);
+});
+
+const keyframesOf = (svg, id) => {
+  const kf = svg.match(new RegExp(`#${id}\\{animation-name:(k\\d+)\\}`))[1];
+  return svg.match(new RegExp(`@keyframes ${kf}\\{([^\\n]+)\\}`))[1];
+};
+const lineTour = () =>
+  factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 40, rows: 14 })
+    .machine("a", { kind: "dock", at: [1, 3], label: "in", external: true })
+    .machine("b", { kind: "press", at: [12, 3], label: "b()", src: "a.js:1" })
+    .machine("c", { kind: "rack", at: [24, 3], label: "c[]", src: "a.js:2", cells: ["", "", ""] })
+    .belt("a", "b").belt("b", "c");
+
+test("a stream sends several items down one belt, evenly spaced", () => {
+  const out = quiet(lineTour().step({ belt: "a->b", stream: ["x", "y", "z"], caption: "three" }));
+  assert.deepEqual(out.problems, []);
+  const ids = [...out.svg.matchAll(/<g class="item[^"]*" opacity="0" id="(bl-a\d+)">/g)].map((m) => m[1]);
+  assert.equal(ids.length, 3);
+  const starts = ids.map((id) => +keyframesOf(out.svg, id).match(/([\d.]+)%\{opacity:1/)[1]);
+  assert.ok(starts[0] < starts[1] && starts[1] < starts[2], `not staggered: ${starts}`);
+  assert.ok(Math.abs(starts[1] - starts[0] - (starts[2] - starts[1])) < 0.01, "uneven spacing");
+});
+
+test("a step with previous starts before the last one ends, and only one caption shows at a time", () => {
+  const out = quiet(lineTour().step({ belt: "a->b", item: "1", caption: "first" }).step({ belt: "b->c", item: "2", with: "previous", caption: "second" }));
+  assert.deepEqual(out.problems, []);
+  const items = [...out.svg.matchAll(/<g class="item[^"]*" opacity="0" id="(bl-a\d+)">/g)].map((m) => keyframesOf(out.svg, m[1]));
+  const firstEnd = Math.max(...[...items[0].matchAll(/([\d.]+)%\{[^}]*transform/g)].map((m) => +m[1]));
+  const secondStart = +items[1].match(/([\d.]+)%\{opacity:1/)[1];
+  assert.ok(secondStart < firstEnd, "the second item should leave while the first is still travelling");
+  const caps = [...out.svg.matchAll(/class="cap"[^>]*id="(bl-a\d+)"/g)].map((m) => keyframesOf(out.svg, m[1]));
+  const offA = Math.max(...[...caps[0].matchAll(/([\d.]+)%\{opacity:1/g)].map((m) => +m[1]));
+  const onB = Math.min(...[...caps[1].matchAll(/([\d.]+)%\{opacity:1/g)].map((m) => +m[1]));
+  assert.ok(offA <= onB, "captions overlap");
+});
+
+const crossTour = (under) =>
+  factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 40, rows: 16 })
+    .machine("a", { kind: "dock", at: [1, 6], label: "a", external: true })
+    .machine("b", { kind: "dock", at: [30, 6], label: "b", external: true })
+    .machine("c", { kind: "press", at: [14, 1], label: "c()", src: "a.js:1" })
+    .machine("d", { kind: "press", at: [14, 12], label: "d()", src: "a.js:2", labelSide: "e" })
+    .belt("a", "b").belt("c", "d", { out: "s", in: "n", under })
+    .step({ belt: "c->d", item: "u" });
+
+test("an underground belt may cross another: hoods mark the tunnel and items vanish inside it", () => {
+  const out = quiet(crossTour(true));
+  assert.deepEqual(out.problems, []);
+  assert.equal((out.svg.match(/class="hood"/g) ?? []).length, 2);
+  assert.match(out.svg, /class="ground"/);
+  const id = out.svg.match(/<g class="item[^"]*" opacity="0" id="(bl-a\d+)">/)[1];
+  const opacities = [...keyframesOf(out.svg, id).matchAll(/opacity:([01])/g)].map((m) => m[1]).join("");
+  assert.match(opacities, /1+0+1+/, `item never disappears underground: ${opacities}`);
+});
+
+test("planted fault fails the audit: a crossing with no underground belt", () => {
+  const out = quiet(crossTour(undefined));
+  assert.match(out.problems.join("\n"), /cross; reroute with via points, or mark one belt under: true/);
+});
+
+test("planted fault fails the audit: going underground right next to a bend", () => {
+  const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 40, rows: 16 })
+    .machine("a", { kind: "dock", at: [1, 6], label: "a", external: true })
+    .machine("b", { kind: "dock", at: [30, 6], label: "b", external: true })
+    .machine("c", { kind: "press", at: [14, 1], label: "c()", src: "a.js:1" })
+    .machine("d", { kind: "press", at: [22, 12], label: "d()", src: "a.js:2", labelSide: "e" })
+    .belt("a", "b").belt("c", "d", { out: "s", in: "n", under: true, via: [[15.6, 7.6]] })
+    .step({ belt: "c->d", item: "u" });
+  const out = quiet(F);
+  assert.match(out.problems.join("\n"), /too close to a bend|cross/);
+});
+
+test("items are drawn in the shape of their kind", () => {
+  const out = quiet(lineTour().step({ belt: "a->b", item: "0x1b", as: "chip" }).step({ belt: "b->c", item: "tok", as: "hex" }));
+  assert.deepEqual(out.problems, []);
+  assert.match(out.svg, /class="item item-chip"/);
+  assert.match(out.svg, /class="item item-hex"[^>]*>(?:<path d="M[^"]+Z" class="item-b"\/>)/);
+  const bad = quiet(lineTour().step({ belt: "a->b", item: "x", as: "blob" }));
+  assert.match(bad.problems.join("\n"), /not one of pill, chip, hex, crate, letter/);
+});
+
+test("rectangular machine bodies carry corner bolts and a top highlight; round ones do not", () => {
+  const out = quiet(lineTour().step({ belt: "a->b", item: "1" }));
+  const press = out.svg.match(/<g class="m m-press"[^]*?<\/g>/)[0];
+  assert.equal((press.match(/class="bolt"/g) ?? []).length, 4);
+  assert.match(press, /class="bevel"/);
+  const drum = quiet(factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 10 }).machine("r", { kind: "drum", at: [2, 2], label: "r", src: "a.js:1", cells: ["", "", "", ""] }).machine("o", { kind: "dock", at: [14, 3], label: "o", external: true }).belt("r", "o").step({ belt: "r->o", item: "1" }));
+  assert.doesNotMatch(drum.svg.match(/<g class="m m-drum"[^]*?<\/g>/)[0], /class="bolt"/);
 });

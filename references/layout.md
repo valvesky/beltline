@@ -32,7 +32,7 @@
 - **Routing:** the router draws orthogonal routes. Ports are spread along a side automatically, and a belt is pulled straight when the two ports already line up.
   - When a route is ugly, add `via: [[col, row], …]` waypoints, or force `out`/`in` sides (`"n" | "s" | "e" | "w"`).
   - A via point is where the belt turns, so place it in an empty gutter.
-- **Crossings:** the audit fails belts that cross. Reorder the machines, move a lane, or turn one of the belts into a signal if it carries no traced data.
+- **Crossings:** belts may not cross on the surface. When rerouting would cost more clarity than it buys, mark one of them `under: true`: it dives between two hoods and passes under the other belt, and its items vanish while they are underground. The audit still fails any other crossing, and an underground belt that dives within about a grid cell of a bend.
 - **Paired belts** (push and pop, request and reply) between the same two machines run side by side. The chevrons show which way each one flows.
 
 ## Motion the kit adds for you

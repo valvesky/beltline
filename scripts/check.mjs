@@ -188,8 +188,9 @@ for (const t of texts) {
   if (s.length > maxChars) fail("clutter", `a text line has ${s.length} chars (max ${maxChars}): "${s.slice(0, 50)}…"`);
 }
 const colors = new Set();
-for (const m of allText.matchAll(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b(?![\w-]*\s*\{)/g)) colors.add(m[1].toLowerCase());
-for (const m of allText.matchAll(/rgba?\([^)]*\)|hsla?\([^)]*\)/g)) colors.add(m[0].replace(/\s/g, ""));
+const colourText = allText.replace(/--[\w-]+\s*:\s*[^;}"]+/g, "");
+for (const m of colourText.matchAll(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b(?![\w-]*\s*\{)/g)) colors.add(m[1].toLowerCase());
+for (const m of colourText.matchAll(/rgba?\([^)]*\)|hsla?\([^)]*\)/g)) colors.add(m[0].replace(/\s/g, ""));
 const maxColors = num("--max-colors", 24);
 if (colors.size > maxColors) fail("clutter", `${colors.size} distinct colour literals (budget ${maxColors}); use the theme tokens`);
 const markupFills = nodes.filter((n) => n.name !== "stop" && /^#|^rgb/.test(n.attrs.fill ?? "") ).length;
@@ -203,4 +204,4 @@ if (problems.length) {
   console.error(`svg check failed: ${problems.length} problem${problems.length > 1 ? "s" : ""}`);
   process.exit(1);
 }
-console.log(`svg check passed (${visible.length} visible texts of ${texts.length}, ${colors.size} colours, ${kb.toFixed(0)} KB)`);
+console.log(`svg check passed (${visible.length} visible texts of ${texts.length}, ${colors.size} direct colours, ${kb.toFixed(0)} KB)`);

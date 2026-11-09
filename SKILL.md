@@ -79,6 +79,12 @@ Machines, belts and signals come first. Steps come after.
 
 Each step is one move along a belt, or one machine at work, plus its writes, pointer moves and a one-line caption with its `src`. Values are what the code really holds at that moment.
 
+Show the program's real flow, not one item at a time when it isn't:
+- **Batches** use `stream`.
+- **Pipelines** use `with: "previous"` when the next stage works while the last one is still busy.
+- **Broadcasts** move items along several belts in one step.
+- **Item shapes** (`as` or the belt's `carries`) say what kind of thing rides each belt: byte chips, token hexes, record crates, request letters.
+
 The kit derives all timing, keyframes, highlights, the caption sequence, the theme, the reduced-motion handling, and the legend. Never hand-write keyframes.
 
 ### 5. Build, check and look
