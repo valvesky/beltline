@@ -7,6 +7,7 @@
 - **Main route:** one row, left to right, from the input dock to the output dock. Readers follow it like a sentence.
 - **Stores:** directly under, or occasionally above, the machine that owns or writes them, joined by short vertical belts. A store shared by two machines sits between them.
 - **Side paths** (rejects, retries, replies, effects) get their own lane below the main row. They branch from a splitter or from a machine's south side. Put no more than three side lanes on one canvas; anything more is a second tour.
+- **Level lines:** machines joined by a straight belt whose centres are within about a grid cell of each other snap onto one shared line, so every machine's input and output sit exactly level and the belt runs dead straight. Place machines roughly; the kit levels them. Ports on a side with several belts are spaced evenly around its centre. Set `align: false` on a machine to keep it exactly where you put it.
 - **Spacing:** keep at least one grid cell between machines. The audit fails anything closer than half a cell.
 - **Labels:** the kit puts each label on a side with no belts, preferring below, then above, then right, then left. Force a side with `labelSide`.
 

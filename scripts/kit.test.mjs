@@ -83,7 +83,7 @@ test("paired belts between the same machines keep separate lanes", () => {
     .belt("b", "a")
     .step({ belt: "a->b", item: "1" });
   const out = quiet(F);
-  const ds = [...out.svg.matchAll(/<path d="([^"]+)" class="belt"/g)].map((m) => m[1]);
+  const ds = [...out.svg.matchAll(/<path d="([^"]+)" class="belt" data-edge/g)].map((m) => m[1]);
   const xs = ds.map((d) => d.match(/^M([\d.]+)/)[1]);
   assert.equal(new Set(xs).size, 2, `both belts leave at x=${xs[0]}`);
 });
@@ -206,3 +206,52 @@ for (const [name, plant, expect] of armFaults) {
     assert.match(out.problems.join("\n"), expect);
   });
 }
+
+const portsOf = (svg) => {
+  const out = {};
+  for (const m of svg.matchAll(/<path d="M([\d.]+) ([\d.]+)((?:L[\d.]+ [\d.]+)+)" class="belt" data-edge="[^"]+" data-from="([^"]+)" data-to="([^"]+)"/g)) {
+    const pts = [[+m[1], +m[2]], ...[...m[3].matchAll(/L([\d.]+) ([\d.]+)/g)].map((x) => [+x[1], +x[2]])];
+    (out[m[4]] ??= []).push({ role: "out", p: pts[0], pts });
+    (out[m[5]] ??= []).push({ role: "in", p: pts.at(-1), pts });
+  }
+  return out;
+};
+
+test("machines a few pixels off a shared line snap onto it, so in and out ports are level", () => {
+  const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 40, rows: 10 })
+    .machine("a", { kind: "dock", at: [1, 2], label: "in", external: true })
+    .machine("b", { kind: "rack", at: [6, 2], label: "b[]", src: "a.js:1", cells: ["", "", ""] })
+    .machine("c", { kind: "drum", at: [14, 1], label: "c", src: "a.js:2", cells: ["", "", "", ""] })
+    .machine("d", { kind: "press", at: [22, 2], label: "d()", src: "a.js:3" })
+    .belt("a", "b").belt("b", "c").belt("c", "d")
+    .step({ belt: "a->b", item: "1" });
+  const out = quiet(F);
+  assert.deepEqual(out.problems, []);
+  const ports = portsOf(out.svg);
+  for (const id of ["b", "c"]) {
+    const [i, o] = [ports[id].find((x) => x.role === "in"), ports[id].find((x) => x.role === "out")];
+    assert.equal(i.p[1], o.p[1], `${id}: input at y=${i.p[1]}, output at y=${o.p[1]}`);
+  }
+  for (const m of out.svg.matchAll(/<path d="([^"]+)" class="belt" data-edge/g)) assert.equal((m[1].match(/L/g) ?? []).length, 1, `belt bends: ${m[1]}`);
+});
+
+test("paired belts between a machine and its store run parallel with no jogs", () => {
+  const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 14 })
+    .machine("f", { kind: "press", at: [4, 2], label: "f()", src: "a.js:1" })
+    .machine("s", { kind: "stack", at: [5, 7], label: "s[]", src: "a.js:2", cells: ["", "", ""] })
+    .belt("f", "s").belt("s", "f")
+    .step({ belt: "f->s", item: "1" });
+  const out = quiet(F);
+  assert.deepEqual(out.problems, []);
+  for (const m of out.svg.matchAll(/<path d="([^"]+)" class="belt" data-edge/g)) assert.equal((m[1].match(/L/g) ?? []).length, 1, `paired belt jogs: ${m[1]}`);
+});
+
+test("a machine far off the line is left where the author put it", () => {
+  const F = factory({ title: "t", subtitle: "Illustrative, not a recording.", desc: "d", cols: 30, rows: 14 })
+    .machine("a", { kind: "press", at: [1, 2], label: "a()", src: "a.js:1" })
+    .machine("b", { kind: "press", at: [10, 6], label: "b()", src: "a.js:2" })
+    .belt("a", "b", { out: "e", in: "w" })
+    .step({ belt: "a->b", item: "1" });
+  const out = quiet(F);
+  assert.match(out.svg, /data-machine="b" data-box="240 208/);
+});

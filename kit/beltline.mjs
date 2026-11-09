@@ -321,11 +321,56 @@ export function factory(opts) {
 
   function portPoint(m, side, k, count) {
     const b = m.geo.body;
-    const f = (k + 1) / (count + 1);
-    if (side === "e") return [b.x + b.w, Math.round(b.y + b.h * f)];
-    if (side === "w") return [b.x, Math.round(b.y + b.h * f)];
-    if (side === "s") return [Math.round(b.x + b.w * f), b.y + b.h + (m.geo.h - b.h)];
-    return [Math.round(b.x + b.w * f), b.y];
+    const horiz = side === "e" || side === "w";
+    const len = horiz ? b.h : b.w;
+    const gap = Math.min(16, len / (count + 1));
+    const off = (k - (count - 1) / 2) * gap;
+    const cy = Math.round(b.y + b.h / 2 + off), cx = Math.round(b.x + b.w / 2 + off);
+    if (side === "e") return [b.x + b.w, cy];
+    if (side === "w") return [b.x, cy];
+    if (side === "s") return [cx, b.y + b.h + (m.geo.h - b.h)];
+    return [cx, b.y];
+  }
+
+  function regeo(m, x, y) {
+    m.x = x;
+    m.y = y;
+    const prev = m.cells;
+    m.geo = MACHINES[m.kind](m, x, y);
+    m.cells = m.geo.cells.map((c, i) => ({ ...c, init: prev[i]?.init ?? "", events: prev[i]?.events ?? [] }));
+  }
+
+  function alignLines(edges) {
+    const snap = G * 0.8;
+    for (let pass = 0; pass < 4; pass++) for (const axis of ["row", "col"]) {
+      const parent = new Map();
+      const find = (id) => (parent.get(id) === id ? id : (parent.set(id, find(parent.get(id))), parent.get(id)));
+      for (const id of machines.keys()) parent.set(id, id);
+      const center = (m) => (axis === "row" ? m.geo.body.y + m.geo.body.h / 2 : m.geo.body.x + m.geo.body.w / 2);
+      for (const e of edges) {
+        const a = machines.get(e.from), b = machines.get(e.to);
+        if (!a || !b || a.align === false || b.align === false || e.via) continue;
+        const out = e.out ?? autoSide(a, b), inn = e.in ?? opposite[autoSide(a, b)];
+        const straight = axis === "row" ? (out === "e" && inn === "w") || (out === "w" && inn === "e") : (out === "s" && inn === "n") || (out === "n" && inn === "s");
+        if (straight && Math.abs(center(a) - center(b)) <= snap) parent.set(find(b.id), find(a.id));
+      }
+      const groups = new Map();
+      for (const id of machines.keys()) {
+        const r = find(id);
+        if (!groups.has(r)) groups.set(r, []);
+        groups.get(r).push(machines.get(id));
+      }
+      for (const group of groups.values()) {
+        if (group.length < 2) continue;
+        const line = center(group[0]);
+        for (const m of group.slice(1)) {
+          const d = line - center(m);
+          if (Math.abs(d) < 0.01) continue;
+          if (axis === "row") regeo(m, m.x, m.y + d);
+          else regeo(m, m.x + d, m.y);
+        }
+      }
+    }
   }
 
   function autoSide(a, b) {
@@ -367,22 +412,6 @@ export function factory(opts) {
         e[role === "out" ? "p0" : "p1"] = portPoint(m, side, k, list.length);
         e[role === "out" ? "outShared" : "inShared"] = list.length > 1;
       });
-    }
-    for (const e of edges) {
-      if (!e.p0 || !e.p1 || e.via || (e.outShared && e.inShared)) continue;
-      const vertical = (e.outSide === "s" && e.inSide === "n") || (e.outSide === "n" && e.inSide === "s");
-      const horizontal = (e.outSide === "e" && e.inSide === "w") || (e.outSide === "w" && e.inSide === "e");
-      const tb = machines.get(e.to).geo.body, fb = machines.get(e.from).geo.body;
-      if (vertical) {
-        const lo = Math.max(tb.x, fb.x) + 6, hi = Math.min(tb.x + tb.w, fb.x + fb.w) - 6;
-        if (!e.inShared && e.p0[0] >= lo && e.p0[0] <= hi) e.p1 = [e.p0[0], e.p1[1]];
-        else if (!e.outShared && e.p1[0] >= lo && e.p1[0] <= hi) e.p0 = [e.p1[0], e.p0[1]];
-      }
-      if (horizontal) {
-        const lo = Math.max(tb.y, fb.y) + 6, hi = Math.min(tb.y + tb.h, fb.y + fb.h) - 6;
-        if (!e.inShared && e.p0[1] >= lo && e.p0[1] <= hi) e.p1 = [e.p1[0], e.p0[1]];
-        else if (!e.outShared && e.p1[1] >= lo && e.p1[1] <= hi) e.p0 = [e.p0[0], e.p1[1]];
-      }
     }
     for (const e of edges) {
       if (!e.p0 || !e.p1) continue;
@@ -585,6 +614,7 @@ export function factory(opts) {
   }
 
   function render() {
+    alignLines([...belts, ...signals]);
     route([...belts, ...signals]);
     const { timeline, T } = compile();
     const pct = (s) => `${Math.min(100, Math.max(0, (s / T) * 100)).toFixed(3)}%`;
